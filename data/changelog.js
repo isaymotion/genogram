@@ -4,6 +4,17 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.5.0',
+    date: '2026-11-13',
+    title: "Clearer charts, a household outline and more relationship lines",
+    items: [
+      { type: 'update', text: "The age of someone who has died can now be read: it sits on a small plate over the cross." },
+      { type: 'update', text: "Crowded rows are tidier: when a row has several curved relationship lines, or also a third or fourth partner, each line gets its own height and the row gets more room." },
+      { type: 'feature', text: "Outline the household: a new switch above the chart draws a dashed blue outline around the index person and everyone who lives with them, instead of the small houses." },
+      { type: 'feature', text: "Six more relationship lines: hostile, physical abuse, emotional abuse, sexual abuse, neglect and caregiver. The ones with an arrow point at the person harmed or cared for." }
+    ]
+  },
+  {
     version: '1.4.0',
     date: '2026-11-13',
     title: 'Four more sample families',

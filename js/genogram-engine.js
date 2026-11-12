@@ -75,8 +75,15 @@ const FAM_LINKS = [
   { type:'Close', say:'close' }, { type:'Very close / enmeshed', say:'very close (enmeshed)' },
   { type:'Distant', say:'distant' }, { type:'Conflictual', say:'conflictual' },
   { type:'Close but conflictual', say:'close but conflictual' }, { type:'Cut off / estranged', say:'cut off (estranged)' },
-  { type:'Abusive toward', say:'abusive toward', dir:true }
+  { type:'Abusive toward', say:'abusive toward', dir:true },
+  { type:'Hostile', say:'hostile' },
+  { type:'Physical abuse toward', say:'physically abusive toward', dir:true }, { type:'Emotional abuse toward', say:'emotionally abusive toward', dir:true },
+  { type:'Sexual abuse toward', say:'sexually abusive toward', dir:true }, { type:'Neglect toward', say:'neglectful toward', dir:true },
+  { type:'Caregiver of', say:'the caregiver of', dir:true }
 ];
+/* What the key says for a line with an arrow */
+const famLinkKey = t => t==='Abusive toward' ? 'Abusive (arrow toward the person harmed)' : t==='Caregiver of' ? 'Caregiver (arrow toward the person cared for)'
+  : / toward$/.test(t) ? t.replace(/ toward$/, '')+' (arrow toward the person harmed)' : t;
 const FAM_ROLE_RANK = ['ggp','pgf','pgm','mgf','mgm','pside','father','stepmo','mother','stepfa','mside','phalf','sib','mhalf','cousin','sibsp','spouse','exsp','child','nib','chsp','gchild','other'];
 /* Gives every family member a short permanent id, so links between members survive sorting and removing */
 function famIds(d){
@@ -172,6 +179,11 @@ function genoLinkPrims(base, type, k){
   if(fine.length<2) return out;
   const zig = (pts, amp) => pts.map((p,i)=>{ const o = (i===0 || i===pts.length-1) ? 0 : (i%2 ? amp : -amp); return [p.x+p.nx*o, p.y+p.ny*o]; });
   const line = (pts, c, extra) => out.push({ t:'poly', pts, c, w:W, ...(extra||{}) });
+  // a line that ends in an arrowhead at the second person: a zigzag or a straight line, optionally with a plain line on each side
+  const arrowLine = (c, kind, extra, sides) => { const z=walk(0.1*k), tot=z[z.length-1].s, body=z.filter(p=>p.s<=tot-0.2*k), e=z[z.length-1];
+    const pts = body.length>1 ? (kind==='zig' ? zig(body, 0.085*k) : side(body, 0)) : [[z[0].x,z[0].y]]; pts[pts.length-1]=[e.x-e.ux*0.18*k, e.y-e.uy*0.18*k]; line(pts, c, extra);
+    if(sides && body.length>1){ line(side(body, 0.15*k), c); line(side(body, -0.15*k), c); }
+    const bx=e.x-e.ux*0.2*k, by=e.y-e.uy*0.2*k; out.push({ t:'poly', pts:[[e.x,e.y],[bx+e.nx*0.1*k,by+e.ny*0.1*k],[bx-e.nx*0.1*k,by-e.ny*0.1*k]], c, w:W*0.6, fill:c, close:true }); };
   switch(type){
     case 'Close': line(side(fine,0.05*k), GENO_GREEN); line(side(fine,-0.05*k), GENO_GREEN); break;
     case 'Very close / enmeshed': [-0.08,0,0.08].forEach(o=>line(side(fine,o*k), GENO_GREEN)); break;
@@ -187,6 +199,12 @@ function genoLinkPrims(base, type, k){
       const pts = body.length>1 ? zig(body, 0.085*k) : [[z[0].x,z[0].y]]; pts[pts.length-1]=[e.x-e.ux*0.18*k, e.y-e.uy*0.18*k]; line(pts, GENO_RED);
       const bx=e.x-e.ux*0.2*k, by=e.y-e.uy*0.2*k; out.push({ t:'poly', pts:[[e.x,e.y],[bx+e.nx*0.1*k,by+e.ny*0.1*k],[bx-e.nx*0.1*k,by-e.ny*0.1*k]], c:GENO_RED, w:W*0.6, fill:GENO_RED, close:true });
       break; }
+    case 'Hostile': line(side(fine,0.14*k), GENO_RED); line(side(fine,-0.14*k), GENO_RED); line(zig(walk(0.1*k), 0.075*k), GENO_RED); break;
+    case 'Physical abuse toward': arrowLine(GENO_BLUE, 'zig'); break;
+    case 'Emotional abuse toward': arrowLine(GENO_BLUE, 'zig', null, true); break;
+    case 'Sexual abuse toward': arrowLine(GENO_RED, 'zig', null, true); break;
+    case 'Neglect toward': arrowLine(GENO_SLATE, 'straight', { dash:true }); break;
+    case 'Caregiver of': arrowLine(GENO_GREEN, 'straight'); break;
     default: line(side(fine,0), GENO_SLATE);
   }
   return out;
@@ -381,11 +399,28 @@ function genogramLayout(d, opts){
   const nodes = [...new Set([...up, ...placed])];
   const gens = [...new Set(nodes.map(n=>n.gen))].sort((a,b)=>a-b), rowY = {};
   let y = 0;
-  gens.forEach(g=>{ rowY[g]=y; const labH = Math.max(0.3, ...nodes.filter(n=>n.gen===g && !n.side).map(n=>n.lab.h)); y += S + 0.12 + labH + 0.48 + DROP; });
+  // curved relationship lines within one row: where a row has several, or also has a partner joined over the top, each curve gets its own height
+  // and the row gets more room above it (a row with a single curve and no line over the top is drawn as before)
+  const arcOf = {}, rowUp = {};
+  { const perGen = {}, nb = {}; nodes.forEach(n=>{ nb[n.id]=n; });
+    famLinksOf(d).forEach((l,i)=>{ const A=nb[l.a], B=nb[l.b]; if(!A || !B || A.gen!==B.gen) return;
+      const lo=Math.min(cx(A),cx(B)), hi=Math.max(cx(A),cx(B)); if(!nodes.some(n=>n.gen===A.gen && n!==A && n!==B && cx(n)>lo && cx(n)<hi)) return;
+      (perGen[A.gen] = perGen[A.gen]||[]).push({ i, span:hi-lo }); });
+    Object.keys(perGen).forEach(g=>{ const over = couples.some(c=>c.over && String(c.a.gen)===g) ? 1 : 0, list = perGen[g].sort((p,q)=>p.span-q.span || p.i-q.i);
+      list.forEach((a,k)=>{ arcOf[a.i] = Math.min(k, 2) + over; });
+      rowUp[g] = 0.3*(Math.min(list.length-1, 2) + over); }); }
+  gens.forEach(g=>{ y += rowUp[g]||0; rowY[g]=y; const labH = Math.max(0.3, ...nodes.filter(n=>n.gen===g && !n.side).map(n=>n.lab.h)); y += S + 0.12 + labH + 0.48 + DROP; });
   nodes.forEach(n=>{ n.y = rowY[n.gen]; });
 
   /* --- drawing pieces --- */
   const prims = [], lines = [];
+  // household: a dashed outline around the people who live with the patient (and the patient), row by row; it replaces the small houses
+  const household = !!d.genoHousehold && nodes.some(n=>n.home);
+  if(household) gens.forEach(g=>{ const row = nodes.filter(n=>n.gen===g).sort((p,q)=>p.x-q.x); let run = [];
+    const close = () => { if(!run.length) return; const ext = n => n.side || !n.lab.lines.length ? S/2 : Math.max(S/2, n.lab.w/2);
+      const x1 = Math.min(...run.map(n=>cx(n)-ext(n)))-0.14, x2 = Math.max(...run.map(n=>cx(n)+ext(n)))+0.14, y1 = run[0].y-0.2, y2 = Math.max(...run.map(n=>n.y+S+(n.side || !n.lab.lines.length ? 0.1 : 0.12+n.lab.h+0.08)));
+      prims.push({ t:'shape', g:'rect', r:0.16, x:x1, y:y1, w:x2-x1, h:y2-y1, fill:'', c:GENO_BLUE, sw:0.03, dash:true, name:'Household' }); run = []; };
+    row.forEach(n=>{ if(n.home || n.pt) run.push(n); else close(); }); close(); });
   const L = (x1,y1,x2,y2,dash,c) => { const l={ t:'line', x1, y1, x2, y2, dash:typeof dash==='string' ? dash : !!dash, c:c||INK, w:0.045 }; lines.push(l); prims.push(l); };
   const used = { couple:new Set(), link:new Set(), bond:new Set() };
   // the line down to a child: solid when born to the family, dashed when adopted, dotted for a foster child
@@ -421,7 +456,7 @@ function genogramLayout(d, opts){
   let anyTwin = false;
   fams.forEach(({a,b,kids,bare,lift,over})=>{
     if(!kids.length) return;
-    const ys = kids[0].y-DROP-(lift||0), xs = kids.map(cx);
+    const ys = kids[0].y-DROP-(lift||0)-(rowUp[kids[0].gen]||0), xs = kids.map(cx);
     let lo = Math.min(...xs), hi = Math.max(...xs), top = null;
     if(a && b && over){ const l = over.x<b.x ? over : b, r = l===over ? b : over; top = { x:dropX(l, r), y:a.y-ARC }; }   // from the line that goes over the top
     else if(a && b && !bare){ const l = a.x<b.x ? a : b, r = l===a ? b : a; top = { x:dropX(l, r), y:l.y+S/2 }; }
@@ -441,13 +476,13 @@ function genogramLayout(d, opts){
   // relationship lines between two people
   const byId = {}; nodes.forEach(n=>{ byId[n.id]=n; });
   const linkOut = [];
-  famLinksOf(d).forEach(l=>{
+  famLinksOf(d).forEach((l,li)=>{
     const A=byId[l.a], B=byId[l.b]; if(!A || !B){ linkOut.push(famLinkLine(d,l)); return; }
     let base;
     if(A.gen===B.gen){
       const lft = A.x<B.x ? A : B, rgt = lft===A ? B : A, between = nodes.some(n=>n.gen===A.gen && n!==A && n!==B && cx(n)>cx(lft) && cx(n)<cx(rgt));
       if(!between){ const yy = lft.y+S/2 + (coupled.has(A.id+'|'+B.id) ? 0.27 : 0); base = [[lft.x+S+0.06, yy],[rgt.x-0.06, yy]]; }
-      else { const x1=cx(lft)+0.24, x2=cx(rgt)-0.24, y0=lft.y-0.05, yc=y0-(coupled.has(A.id+'|'+B.id) ? 0.85 : 0.42); base=[];
+      else { const x1=cx(lft)+0.24, x2=cx(rgt)-0.24, y0=lft.y-0.05, yc=y0-(coupled.has(A.id+'|'+B.id) ? 0.85 : 0.42)-0.4*(arcOf[li]||0); base=[];
         for(let i=0;i<=28;i++){ const t=i/28, u=1-t; base.push([u*u*u*x1+3*u*u*t*(x1+0.25)+3*u*t*t*(x2-0.25)+t*t*t*x2, u*u*u*y0+3*u*u*t*yc+3*u*t*t*yc+t*t*t*y0]); } }
       if(lft!==A) base.reverse();
     } else {
@@ -477,17 +512,20 @@ function genogramLayout(d, opts){
     if(n.preg==='Abortion'){ [[x,y,x+s,y+s],[x+s,y,x,y+s]].forEach(q=>prims.push({ t:'line', x1:q[0], y1:q[1], x2:q[2], y2:q[3], c:INK, w:0.06, id })); return; }
     const txtC = n.fill ? 'FFFFFF' : n.ghost ? GENO_SLATE : INK, o = n.pt ? 0.12*k : 0;
     prims.push({ t:'shape', g, x, y, w:s, h:s, fill:n.fill ? GENO_FILL : 'FFFFFF', c:n.ghost ? GENO_SLATE : INK, sw:n.ghost ? sw*0.7 : sw, dash:!!n.ghost, id, name:name||'Member',
-      text: n.inner && !n.subst ? { t:String(n.inner), fs:(len<=2 ? 0.37 : len===3 ? 0.31 : len===4 ? 0.25 : 0.2)*k, b:true, c:txtC } : null });
+      text: n.inner && !n.subst && !n.dead ? { t:String(n.inner), fs:(len<=2 ? 0.37 : len===3 ? 0.31 : len===4 ? 0.25 : 0.2)*k, b:true, c:txtC } : null });
     // substance use: the lower half is dark (inside the inner outline for the patient); the age moves to the upper half
     if(n.subst){ prims.push({ t:'poly', pts:lowerHalf(g, x+o, y+o, s-2*o), c:INK, w:sw*0.6, fill:INK, close:true, name:'Substance use' });
-      if(n.inner){ const fs=(len<=2 ? 0.27 : len===3 ? 0.23 : 0.18)*k*(g==='rect' ? 1 : 0.9)*(n.pt ? 0.85 : 1); inText(n.inner, x+s/2, y+s/2-fs*1.2-0.02*k, fs, txtC); } }
+      if(n.inner && !n.dead){ const fs=(len<=2 ? 0.27 : len===3 ? 0.23 : 0.18)*k*(g==='rect' ? 1 : 0.9)*(n.pt ? 0.85 : 1); inText(n.inner, x+s/2, y+s/2-fs*1.2-0.02*k, fs, txtC); } }
     if(n.pt) prims.push({ t:'shape', g, x:x+o, y:y+o, w:s-2*o, h:s-2*o, fill:'', c:n.fill ? 'FFFFFF' : INK, sw:sw*0.8, name:'Patient' });
-    if(n.dead){ const e=0.11*k; [[x-e,y-e,x+s+e,y+s+e],[x+s+e,y-e,x-e,y+s+e]].forEach(q=>prims.push({ t:'line', x1:q[0], y1:q[1], x2:q[2], y2:q[3], c:INK, w:0.045*k })); }
+    if(n.dead){ const e=0.11*k; [[x-e,y-e,x+s+e,y+s+e],[x+s+e,y-e,x-e,y+s+e]].forEach(q=>prims.push({ t:'line', x1:q[0], y1:q[1], x2:q[2], y2:q[3], c:INK, w:0.045*k }));
+      // the age (or ×n) of someone who died: on a small plate over the middle of the cross, so that it can be read
+      if(n.inner){ const fs=(len<=2 ? 0.3 : len===3 ? 0.26 : len===4 ? 0.22 : 0.18)*k, pw=genoTextW(String(n.inner), fs, true)+0.09*k, ph=fs*1.12, pf = n.subst ? INK : n.fill ? GENO_FILL : 'FFFFFF', py = n.subst ? y+s*0.5 : y+s/2-ph/2;
+        prims.push({ t:'shape', g:'rect', r:0.05*k, x:x+s/2-pw/2, y:py, w:pw, h:ph, fill:pf, c:pf, sw:0.01, name:'Age', text:{ t:String(n.inner), fs, b:true, c:n.subst || n.fill ? 'FFFFFF' : INK } }); } }
   };
   const house = (x, y, k) => prims.push({ t:'poly', pts:[[x,y+0.11*k],[x+0.13*k,y],[x+0.26*k,y+0.11*k],[x+0.26*k,y+0.24*k],[x,y+0.24*k]], c:GENO_SLATE, w:0.02*k, fill:GENO_SLATE, close:true });
   nodes.forEach(n=>{
     symbol(n, cx(n)-n.sh/2, n.y, n.sh, nameOf(n));
-    if(n.home) house(n.x+S-0.04, n.y-0.2, 1);
+    if(n.home && !household) house(n.x+S-0.04, n.y-0.2, 1);
     if(!n.lab.lines.length) return;
     if(n.side==='R') prims.push({ t:'text', a:'s', x:n.x+S+0.2, y:n.y+S/2-n.lab.h/2, w:n.lab.w, h:n.lab.h, lines:n.lab.lines });
     else if(n.side==='L') prims.push({ t:'text', a:'e', x:n.x-0.2, y:n.y+S/2-n.lab.h/2, w:n.lab.w, h:n.lab.h, lines:n.lab.lines });
@@ -519,7 +557,8 @@ function genogramLayout(d, opts){
   if(has(n=>n.preg==='Miscarriage')) key.push({ w:0.34, text:'Miscarriage', draw:(x,y)=>symbol(mini({preg:'Miscarriage'}), x+0.09, y+0.09, 0.16, 'Key') });
   if(has(n=>n.preg==='Abortion')) key.push({ w:0.34, text:'Abortion', draw:(x,y)=>symbol(mini({preg:'Abortion'}), x+0.08, y+0.08, 0.18, 'Key') });
   if(has(n=>n.preg==='Stillbirth')) key.push({ w:0.34, text:'Stillbirth (small symbol, crossed)', draw:(x,y)=>symbol(mini({dead:true}), x+0.07, y+0.07, 0.2, 'Key') });
-  if(has(n=>n.home)) key.push({ w:0.34, text:'Lives with the patient', draw:(x,y)=>house(x+0.04, y+0.05, 1) });
+  if(household) key.push({ w:0.34, text:'Household: lives with the patient', draw:(x,y)=>prims.push({ t:'shape', g:'rect', r:0.06, x:x, y:y+0.04, w:0.34, h:0.26, fill:'', c:GENO_BLUE, sw:0.03, dash:true, name:'Key' }) });
+  else if(has(n=>n.home)) key.push({ w:0.34, text:'Lives with the patient', draw:(x,y)=>house(x+0.04, y+0.05, 1) });
   const seg = (x,y,dash) => prims.push({ t:'line', x1:x, y1:y+0.17, x2:x+0.62, y2:y+0.17, c:INK, w:0.04, dash:!!dash });
   const sl = (x,y,off) => prims.push({ t:'line', x1:x+0.31+off-0.07, y1:y+0.3, x2:x+0.31+off+0.07, y2:y+0.04, c:INK, w:0.04 });
   if(used.couple.has('Married')) key.push({ w:0.62, text:'Married / partners', draw:(x,y)=>seg(x,y) });
@@ -540,7 +579,7 @@ function genogramLayout(d, opts){
   if(used.bond.has('Adopted')) key.push({ w:0.62, text:'Adopted (dashed line to the child)', draw:(x,y)=>vseg(x,y,true) });
   if(used.bond.has('Foster')) key.push({ w:0.62, text:'Foster child (dotted line)', draw:(x,y)=>vseg(x,y,'dot') });
   if(anyTwin) key.push({ w:0.62, text:'Twins', draw:(x,y)=>{ [[0.12],[0.5]].forEach(q=>prims.push({ t:'line', x1:x+0.31, y1:y+0.03, x2:x+q[0], y2:y+0.31, c:INK, w:0.04 })); } });
-  FAM_LINKS.forEach(t=>{ if(used.link.has(t.type)) key.push({ w:0.62, text:t.type==='Abusive toward' ? 'Abusive (arrow toward the person harmed)' : t.type, draw:(x,y)=>prims.push(...genoLinkPrims([[x,y+0.17],[x+0.62,y+0.17]], t.type, 0.72)) }); });
+  FAM_LINKS.forEach(t=>{ if(used.link.has(t.type)) key.push({ w:0.62, text:famLinkKey(t.type), draw:(x,y)=>prims.push(...genoLinkPrims([[x,y+0.17],[x+0.62,y+0.17]], t.type, 0.72)) }); });
   key.push({ w:0, text:'Age inside each symbol', draw:()=>{} });
   const KF=0.2, KR=0.42, itemW = it => (it.w ? it.w+0.14 : 0) + genoTextW(it.text, KF) + 0.45;
   const colW = Math.max(...key.map(itemW));
@@ -590,7 +629,7 @@ function genogramSVG(G, unit){
   return out + '</svg>';
 }
 /* ===== END shared block ===== */
-const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_COUPLE_GROUPS, FAM_COUPLE_OLD, FAM_COUPLE_KIND, famCoupleOptions, genoDash, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, memberLine,
+const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_COUPLE_GROUPS, FAM_COUPLE_OLD, FAM_COUPLE_KIND, famCoupleOptions, genoDash, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, famLinkKey, memberLine,
   relInfo, famIds, famSorted, famCount, famLinksOf, famLinkLine, famName, ageYears, memberSex, INK:GENO_INK, FILL:GENO_FILL, SLATE:GENO_SLATE, BLUE:GENO_BLUE };
 if (typeof window !== 'undefined') window.Geno = api;
 if (typeof module !== 'undefined') module.exports = api;

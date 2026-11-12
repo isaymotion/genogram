@@ -391,5 +391,21 @@ window.CONTENT_TL = {
   "A blended family: an annulled marriage, step-parents, half-siblings and a live-in partner.": "Pinagsamang pamilya: na-annul na kasal, mga step-parent, mga kapatid sa ama o sa ina, at kinakasamang live-in.",
   "An older index person: children and their partners, grandchildren, twins and an adopted grandchild.": "Nakatatandang index person: mga anak at kanilang kapareha, mga apo, kambal at ampong apo.",
   "Substance use across generations: a current partner, former partners, children with different mothers and a pregnancy.": "Paggamit ng substance sa ilang henerasyon: kasalukuyang kapareha, mga dating kapareha, mga anak sa magkakaibang ina at isang pagbubuntis.",
-  "A family history of psychosis: great-grandparents, an aunt and cousins, a twin sister and a fiancé.": "Kasaysayan ng psychosis sa pamilya: mga lolo at lola sa tuhod, tiya at mga pinsan, kakambal na babae at nobyong nakatakdang pakasalan."
+  "A family history of psychosis: great-grandparents, an aunt and cousins, a twin sister and a fiancé.": "Kasaysayan ng psychosis sa pamilya: mga lolo at lola sa tuhod, tiya at mga pinsan, kakambal na babae at nobyong nakatakdang pakasalan.",
+  /* 1.5.0: household outline and more relationship lines (draft) */
+  "Outline the household": "Balangkasin ang sambahayan",
+  "Household": "Sambahayan",
+  "With “Outline the household” turned on above the chart, a dashed blue outline is drawn around the index person and everyone who lives with them, instead of the small houses.": "Kapag naka-on ang “Balangkasin ang sambahayan” sa itaas ng chart, may asul na putol-putol na balangkas sa paligid ng index person at ng lahat ng kasama niya sa bahay, kapalit ng maliliit na bahay.",
+  "Hostile": "Mapang-away",
+  "A red zigzag between two red lines.": "Pulang zigzag sa pagitan ng dalawang pulang linya.",
+  "Physical abuse toward": "Pisikal na pang-aabuso kay",
+  "A blue zigzag with an arrow pointing at the person harmed.": "Asul na zigzag na may palasong nakaturo sa taong nasaktan.",
+  "Emotional abuse toward": "Emosyonal na pang-aabuso kay",
+  "A blue zigzag between two blue lines, with an arrow pointing at the person harmed.": "Asul na zigzag sa pagitan ng dalawang asul na linya, may palasong nakaturo sa taong nasaktan.",
+  "Sexual abuse toward": "Sekswal na pang-aabuso kay",
+  "A red zigzag between two red lines, with an arrow pointing at the person harmed.": "Pulang zigzag sa pagitan ng dalawang pulang linya, may palasong nakaturo sa taong nasaktan.",
+  "Neglect toward": "Pagpapabaya kay",
+  "A grey dashed line with an arrow pointing at the person neglected.": "Kulay-abong putol-putol na linya na may palasong nakaturo sa taong napabayaan.",
+  "Caregiver of": "Tagapag-alaga ni",
+  "A green line with an arrow pointing at the person cared for.": "Berdeng linya na may palasong nakaturo sa taong inaalagaan."
 };

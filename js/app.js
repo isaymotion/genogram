@@ -628,7 +628,7 @@
   function touch(c) { c.updated = new Date().toISOString(); saveSoon(); }
   function blankChart(title) {
     return { id: uid('c'), title: title || 'Family genogram', created: new Date().toISOString(), updated: new Date().toISOString(),
-      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptSubst: false, ptBond: '', ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, initials: false, family: [], links: [] };
+      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptSubst: false, ptBond: '', ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, initials: false, household: false, family: [], links: [] };
   }
   function addChart(c) { DB.byId[c.id] = c; DB.order.unshift(c.id); saveNow(); rebuildIndex(); return c; }
   function removeChart(id) { delete DB.byId[id]; DB.order = DB.order.filter(function (x) { return x !== id; }); saveNow(); rebuildIndex(); }
@@ -749,7 +749,7 @@
   function toEngine(c) {
     var ini = !!c.initials, fam = !ini ? c.family : c.family.map(function (m) { if (!m || !m.name) return m; var o = {}; for (var k in m) if (has(m, k)) o[k] = m[k]; o.name = initialsOf(m.name); return o; });
     return { agesex: (c.ptAge || '') + ' / ' + (c.ptSex || ''), parentsRel: c.parentsRel, ptRel: c.ptRel, genoPtName: ini ? initialsOf(c.ptName) : c.ptName, genoPtOcc: c.ptOcc, genoPtCond: c.ptCond,
-      genoPtFill: c.ptFill !== false, genoPtSubst: !!c.ptSubst, genoPtBond: c.ptBond || '', genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, family: fam, famLinks: c.links };
+      genoPtFill: c.ptFill !== false, genoPtSubst: !!c.ptSubst, genoPtBond: c.ptBond || '', genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, genoHousehold: !!c.household, family: fam, famLinks: c.links };
   }
   function chartTitleLine(c) { var d = new Date(); return (c.title || 'Family genogram') + ' (' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ')'; }
   function layoutOf(c, withTitle) { G.famIds(c); return G.layout(toEngine(c), withTitle && c.showTitle !== false ? { title: chartTitleLine(c) } : {}); }
@@ -928,7 +928,7 @@
     viewNodes = L ? L.nodes : null;
     if (!L) return '<div class="empty"><h2>' + esc(tx('Nothing to draw yet')) + '</h2><p>' + esc(tx('Add at least one family member and the genogram appears here.')) + '</p><p><a class="btn btn--solid" href="#/chart/' + esc(c.id) + '">' + esc(tx('Add the family')) + '</a></p></div>';
     return '<div class="viewbar"><div class="segb" role="group" aria-label="' + esc(tx('Zoom')) + '"><button type="button" data-act="zoomout" aria-label="' + esc(tx('Zoom out')) + '">−</button><button type="button" data-act="zoomfit">' + esc(tx('Fit')) + '</button><button type="button" data-act="zoomin" aria-label="' + esc(tx('Zoom in')) + '">+</button></div>' +
-        chip('data-c="1"', 'showTitle', c.showTitle !== false, tx('Show the title and date')) + chip('data-c="1"', 'initials', c.initials, tx('Initials only')) + '</div>' +
+        chip('data-c="1"', 'showTitle', c.showTitle !== false, tx('Show the title and date')) + chip('data-c="1"', 'initials', c.initials, tx('Initials only')) + chip('data-c="1"', 'household', c.household, tx('Outline the household')) + '</div>' +
       '<div class="canvas canvas--pz" id="canvas"><div class="canvas__in" id="canvas-in">' + G.svg(L, VIEW_UNIT) + '</div></div>' +
       '<p class="hint">' + esc(tx('Tap a person to edit them. Pinch, or use + and −, to zoom, then drag to move around.')) + '</p>' +
       (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">' + esc(tx('Not drawn')) + '</p>' + esc(L.left.join(', ')) + '. ' + esc(tx('A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for four partners: put more in one symbol with “Number of people”.')) + '</div>' : '') +
@@ -1091,7 +1091,7 @@
     var c = blankChart('Family genogram'), txt = function (v) { return String(v == null ? '' : v).slice(0, 300); };
     ['title', 'ptName', 'ptAge', 'ptSex', 'ptOcc', 'ptCond', 'ptBond', 'parentsRel', 'ptRel'].forEach(function (k) { if (src[k] != null) c[k] = txt(src[k]); });
     ['ptSubst', 'ptDead', 'initials'].forEach(function (k) { c[k] = !!src[k]; });
-    ['ptFill', 'byAge', 'showTitle'].forEach(function (k) { c[k] = src[k] !== false; });
+    ['ptFill', 'byAge', 'showTitle'].forEach(function (k) { c[k] = src[k] !== false; }); c.household = !!src.household;
     var ids = {};
     c.family = (Array.isArray(src.family) ? src.family : []).slice(0, 200).filter(function (m) { return m && typeof m === 'object'; }).map(function (m) {
       var o = { id: /^[\w-]{1,24}$/.test(String(m.id || '')) && !ids[m.id] && m.id !== 'pt' ? String(m.id) : uid('f') }; ids[o.id] = true;
@@ -1212,6 +1212,7 @@
       ['Both', 'Shaded, with a dark lower half.', symPrims({ sex: 'F', fill: true, subst: true })],
       ['Several people in one symbol', '×n inside the symbol, from “Number of people”: 5 former partners, 7 children.', symPrims({ sex: 'U', text: '×7' })],
       ['Parent not listed', 'Dashed symbol with a question mark, drawn for half-siblings when the other parent was not added.', symPrims({ sex: 'U', ghost: true, text: '?' })],
+      ['Household', 'With “Outline the household” turned on above the chart, a dashed blue outline is drawn around the index person and everyone who lives with them, instead of the small houses.', [{ t: 'shape', g: 'rect', r: 0.12, x: 0.12, y: 0.22, w: 0.96, h: 0.78, fill: '', c: G.BLUE, sw: 0.04, dash: true }]],
       ['Lives with the index person', 'A small house beside the symbol.', [{ t: 'poly', pts: [[0.25, 0.62], [0.6, 0.3], [0.95, 0.62], [0.95, 0.98], [0.25, 0.98]], c: G.SLATE, w: 0.03, fill: G.SLATE, close: true }]]] },
     { h: 'Couples and children', c: '#C2337A', rows: [
       ['Married / partners', 'A solid line between two people.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }], 2],
@@ -1249,7 +1250,11 @@
       ['Twins', 'Two lines that start from the same point.', [{ t: 'line', x1: 1, y1: 0.15, x2: 0.45, y2: 0.9, c: G.INK, w: 0.055 }, { t: 'line', x1: 1, y1: 0.15, x2: 1.55, y2: 0.9, c: G.INK, w: 0.055 }], 2]] },
     { h: 'Relationship lines', c: '#0E8A8A', rows: [
       ['Close', 'Two green lines.'], ['Very close / enmeshed', 'Three green lines.'], ['Distant', 'A dotted line.'], ['Conflictual', 'A red zigzag.'],
-      ['Close but conflictual', 'A red zigzag between two green lines.'], ['Cut off / estranged', 'A line broken in the middle.'], ['Abusive toward', 'A red zigzag with an arrow pointing at the person harmed.']] }
+      ['Close but conflictual', 'A red zigzag between two green lines.'], ['Cut off / estranged', 'A line broken in the middle.'], ['Abusive toward', 'A red zigzag with an arrow pointing at the person harmed.'],
+      ['Hostile', 'A red zigzag between two red lines.'], ['Physical abuse toward', 'A blue zigzag with an arrow pointing at the person harmed.'],
+      ['Emotional abuse toward', 'A blue zigzag between two blue lines, with an arrow pointing at the person harmed.'],
+      ['Sexual abuse toward', 'A red zigzag between two red lines, with an arrow pointing at the person harmed.'],
+      ['Neglect toward', 'A grey dashed line with an arrow pointing at the person neglected.'], ['Caregiver of', 'A green line with an arrow pointing at the person cared for.']] }
   ];
   TITLES.symbols = 'Symbols and lines';
   VIEWS.symbols = function () {
