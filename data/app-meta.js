@@ -3,7 +3,7 @@ window.APP_META = {
   name: 'Genogram',
   short: 'Genogram',
   tagline: 'Family genogram maker',
-  version: '1.2.0',
+  version: '1.3.0',
   repo: 'genogram',
   attribution: 'App created by Isabella Navarro, MD. Latest version November 2026. isaymotion@gmail.com'
 };

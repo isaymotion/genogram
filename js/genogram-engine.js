@@ -45,7 +45,31 @@ const FAM_BOND = ['Adopted','Foster'];
 const FAM_PREG = ['Pregnancy','Miscarriage','Abortion','Stillbirth'];
 const famBond = m => m && FAM_BOND.includes(m.bond) && FAM_TWIN_ROLES.includes(relInfo(m.rel).role) ? m.bond : '';
 const famPreg = m => m && FAM_PREG.includes(m.preg) && FAM_TWIN_ROLES.includes(relInfo(m.rel).role) ? m.preg : '';
-const FAM_COUPLE = ['Married','Living together','Separated','Annulled / divorced'];
+/* How two partners are joined. c: line colour (blue for couples who are not married), dash: line pattern, house: living together,
+   mark: sep = one slash, legal = one slash the other way, div = two slashes, null = three, wid = a cross.
+   'Living together' and 'Annulled / divorced' are the older names: they still draw exactly as before, but are no longer offered for new entries. */
+const FAM_COUPLE_GROUPS = [
+  { h:'Married', o:['Married','Separated','Legal separation','Divorce','Nullity','Widowed'] },
+  { h:'Engaged', o:['Engagement','Engagement and cohabitation','Engagement and separation'] },
+  { h:'Living together', o:['Legal cohabitation','Legal cohabitation and separation in fact','Legal cohabitation and legal separation','Cohabitation','Cohabitation and separation','Non-sentimental cohabitation','Non-sentimental cohabitation and separation'] },
+  { h:'Not living together', o:['Committed relationship','Committed relationship and separation','Casual relationship or dating','Casual relationship and separation','Temporary relation / one night stand','Love affair','Love affair and separation'] },
+  { h:'Other', o:['Rape / forced relationship','Other or unknown'] }
+];
+const FAM_COUPLE_OLD = ['Living together','Annulled / divorced'];
+const FAM_COUPLE = [].concat(...FAM_COUPLE_GROUPS.map(g=>g.o), FAM_COUPLE_OLD);
+/* The choices for a couple's relationship, as <option>s in groups. blank: label of the empty first choice; tr: translates what is shown (the stored value stays English) */
+function famCoupleOptions(cur, blank, tr){
+  const t = tr || (x=>x), e = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'), c = String(cur||'');
+  const one = (v, lab) => `<option value="${e(v)}"${v===c ? ' selected' : ''}>${e(lab)}</option>`;
+  return one('', blank) + FAM_COUPLE_GROUPS.map(g=>`<optgroup label="${e(t(g.h))}">${g.o.map(o=>one(o, t(o))).join('')}</optgroup>`).join('') +
+    (FAM_COUPLE_OLD.includes(c) ? `<optgroup label="${e(t('Older symbol'))}">${one(c, t(c))}</optgroup>` : '');
+}
+/* The line pattern of a couple's line or of the line down to a child, as an SVG dash list (u: pixels per unit, w: line width in units) */
+function genoDash(d, w, u){
+  const f = a => a.map(v=>(v*u).toFixed(1)).join(' ');
+  return d==='dot' ? [f([w*0.4, 0.11]), true] : d==='sparse' ? [f([w*0.4, 0.21]), true] : d==='dashdot' ? [f([0.17, 0.08, 0.035, 0.08]), false]
+    : d==='dashdotdot' ? [f([0.2, 0.08, 0.035, 0.08, 0.035, 0.08]), false] : d==='short' ? [f([0.11, 0.07]), false] : d ? [f([0.16, 0.12]), false] : null;
+}
 /* Relationship lines between two people. dir: drawn from the first person toward the second. */
 const FAM_LINKS = [
   { type:'Close', say:'close' }, { type:'Very close / enmeshed', say:'very close (enmeshed)' },
@@ -99,6 +123,20 @@ function memberLine(m){
 
 /* Text sizes on the genogram are estimated, so the same layout works in the app, Word and slides */
 const GENO_INK='1B2A3A', GENO_MID='4A5A6B', GENO_FILL='7C8796', GENO_GREEN='1E7B4F', GENO_RED='C0392B', GENO_SLATE='5B6B7D';
+const GENO_BLUE='1F4FB0', GENO_PINK='D9609A';
+const FAM_COUPLE_KIND = {
+  'Married':{}, 'Separated':{ mark:'sep' }, 'Legal separation':{ mark:'legal' }, 'Divorce':{ mark:'div' }, 'Nullity':{ mark:'null' }, 'Widowed':{ mark:'wid' },
+  'Living together':{ dash:true }, 'Annulled / divorced':{ mark:'div' },
+  'Engagement':{ c:GENO_BLUE, dash:true }, 'Engagement and cohabitation':{ c:GENO_BLUE, dash:true, house:true }, 'Engagement and separation':{ c:GENO_BLUE, dash:true, mark:'sep' },
+  'Legal cohabitation':{ c:GENO_BLUE, dash:'dashdot', house:true }, 'Legal cohabitation and separation in fact':{ c:GENO_BLUE, dash:'dashdot', house:true, mark:'sep' }, 'Legal cohabitation and legal separation':{ c:GENO_BLUE, dash:'dashdot', house:true, mark:'legal' },
+  'Cohabitation':{ c:GENO_BLUE, dash:'dot', house:true }, 'Cohabitation and separation':{ c:GENO_BLUE, dash:'dot', house:true, mark:'sep' },
+  'Non-sentimental cohabitation':{ c:GENO_BLUE, dash:'sparse', house:true }, 'Non-sentimental cohabitation and separation':{ c:GENO_BLUE, dash:'sparse', house:true, mark:'sep' },
+  'Committed relationship':{ c:GENO_BLUE, dash:'short' }, 'Committed relationship and separation':{ c:GENO_BLUE, dash:'short', mark:'sep' },
+  'Casual relationship or dating':{ c:GENO_BLUE, dash:'dot' }, 'Casual relationship and separation':{ c:GENO_BLUE, dash:'dot', mark:'sep' },
+  'Temporary relation / one night stand':{ c:GENO_BLUE, dash:'dashdotdot' },
+  'Love affair':{ c:GENO_PINK, dash:'dashdot' }, 'Love affair and separation':{ c:GENO_PINK, dash:'dashdot', mark:'sep' },
+  'Rape / forced relationship':{ c:GENO_RED, dash:'sparse' }, 'Other or unknown':{ c:GENO_SLATE, dash:'dashdotdot' }
+};
 const genoCW = c => /[iljtfIr.,;:·'()\[\]! ]/.test(c) ? 0.31 : /[mwMW@]/.test(c) ? 0.84 : /[A-Z0-9]/.test(c) ? 0.64 : 0.5;
 const genoTextW = (t, fs, bold) => [...String(t)].reduce((a,c)=>a+genoCW(c), 0)*fs*(bold?1.07:1);
 function genoWrap(t, fs, maxW, maxLines, bold){
@@ -348,7 +386,7 @@ function genogramLayout(d, opts){
 
   /* --- drawing pieces --- */
   const prims = [], lines = [];
-  const L = (x1,y1,x2,y2,dash) => { const l={ t:'line', x1, y1, x2, y2, dash:dash==='dot' ? 'dot' : !!dash, c:INK, w:0.045 }; lines.push(l); prims.push(l); };
+  const L = (x1,y1,x2,y2,dash,c) => { const l={ t:'line', x1, y1, x2, y2, dash:typeof dash==='string' ? dash : !!dash, c:c||INK, w:0.045 }; lines.push(l); prims.push(l); };
   const used = { couple:new Set(), link:new Set(), bond:new Set() };
   // the line down to a child: solid when born to the family, dashed when adopted, dotted for a foster child
   const kidDash = n => { if(n.bond) used.bond.add(n.bond); return n.bond==='Adopted' ? true : n.bond==='Foster' ? 'dot' : false; };
@@ -357,18 +395,27 @@ function genogramLayout(d, opts){
   const dropX = (l, r) => { const mid=(l.x+S+r.x)/2, half = n => n.side || n.ghost ? S/2 : Math.max(S/2, n.lab.w/2), lo=cx(l)+half(l)+0.12, hi=cx(r)-half(r)-0.12;
     return lo>hi ? (lo+hi)/2 : Math.max(lo, Math.min(hi, mid)); };
   const ARC=0.34;   // how far above the symbols the line to a third or fourth partner runs
+  // the marks on a couple's line: slashes or a cross where the children's line leaves it; a small house for living together, beside them
+  const onTop = [];   // houses are drawn after the lines, so that they cover them
+  const coupleHouse = (hx, yy, c, k) => ({ t:'poly', pts:[[-0.15,-0.02],[0,-0.17],[0.15,-0.02],[0.15,0.14],[-0.15,0.14]].map(q=>[hx+q[0]*k, yy+q[1]*k]), c, w:0.04*k, fill:'FFFFFF', close:true });
+  const coupleMarks = (K, mx, yy, room, tight) => {   // tight: on the short line over the top, the house and the slash sit closer together
+    const c = K.c||INK, fwd = off => L(mx+off-0.13, yy+0.24, mx+off+0.13, yy-0.24, false, K.c), back = off => L(mx+off-0.13, yy-0.24, mx+off+0.13, yy+0.24, false, K.c);
+    if(K.house) onTop.push(coupleHouse(tight && K.mark ? mx-room*0.2 : mx, yy, c, 1));
+    const at = !K.house ? 0 : tight ? room*0.14 : room*0.36;   // beside the house, on the side with more room
+    if(K.mark==='sep') fwd(at); else if(K.mark==='legal') back(at); else if(K.mark==='div'){ fwd(-0.09); fwd(0.09); }
+    else if(K.mark==='null'){ fwd(-0.16); fwd(0); fwd(0.16); }
+    else if(K.mark==='wid'){ L(mx-0.15, yy-0.15, mx+0.15, yy+0.15, false, K.c); L(mx-0.15, yy+0.15, mx+0.15, yy-0.15, false, K.c); } };
   couples.forEach(({a,b,status,over})=>{
-    used.couple.add(FAM_COUPLE.includes(status) ? status : 'Married');
+    const name = FAM_COUPLE.includes(status) ? status : 'Married', K = FAM_COUPLE_KIND[name];
+    used.couple.add(name);
     coupled.add(a.id+'|'+b.id); coupled.add(b.id+'|'+a.id);
-    const slashAt = (mx, yy) => { const slash = off => L(mx+off-0.13, yy+0.24, mx+off+0.13, yy-0.24);
-      if(status==='Separated') slash(0); if(status==='Annulled / divorced'){ slash(-0.09); slash(0.09); } };
     if(over){   // an outer partner: the line goes up and over the partner in between
       const dir = b.x>a.x ? 1 : -1, x1=cx(a)+dir*0.3, x2=cx(b)-dir*0.3, yt=a.y-ARC, l = over.x<b.x ? over : b, r = l===over ? b : over;
-      L(x1, a.y, x1, yt); L(x1, yt, x2, yt, status==='Living together'); L(x2, yt, x2, b.y);
-      slashAt((dropX(l, r)+x2)/2, yt); used.over=true; return; }
+      L(x1, a.y, x1, yt, false, K.c); L(x1, yt, x2, yt, K.dash, K.c); L(x2, yt, x2, b.y, false, K.c);
+      coupleMarks(K, (dropX(l, r)+x2)/2, yt, dir, true); used.over=true; return; }
     const l = a.x<b.x ? a : b, r = l===a ? b : a, yy = l.y+S/2, mx = dropX(l, r);
-    L(l.x+S, yy, r.x, yy, status==='Living together');
-    slashAt(mx, yy);
+    L(l.x+S, yy, r.x, yy, K.dash, K.c);
+    coupleMarks(K, mx, yy, mx-(l.x+S) < r.x-mx ? 1 : -1);
   });
   const isTwin = (n, kids, i) => n.twin || (n.pt && [kids[i-1], kids[i+1]].some(o=>o && o.twin && o.ageY!=null && o.ageY===n.ageY));
   let anyTwin = false;
@@ -387,6 +434,7 @@ function genogramLayout(d, opts){
     if(hi-lo > 0.001) L(lo, ys, hi, ys);
     kids.forEach(n=>{ if(!done.has(n)) L(cx(n), ys, cx(n), n.y, kidDash(n)); });
   });
+  onTop.forEach(h=>prims.push(h));
   // arrow pointing at the patient, from the upper left
   { const tx=P.x-0.07, ty=P.y-0.07; L(tx-0.42, ty-0.36, tx, ty); L(tx, ty, tx-0.25, ty-0.07); L(tx, ty, tx-0.1, ty-0.24); }
 
@@ -478,6 +526,15 @@ function genogramLayout(d, opts){
   if(used.couple.has('Living together')) key.push({ w:0.62, text:'Living together', draw:(x,y)=>seg(x,y,true) });
   if(used.couple.has('Separated')) key.push({ w:0.62, text:'Separated', draw:(x,y)=>{ seg(x,y); sl(x,y,0); } });
   if(used.couple.has('Annulled / divorced')) key.push({ w:0.62, text:'Annulled / divorced', draw:(x,y)=>{ seg(x,y); sl(x,y,-0.06); sl(x,y,0.06); } });
+  // the newer kinds of couple: the same line, colour and marks as on the genogram, drawn small
+  FAM_COUPLE.forEach(name=>{ if(!used.couple.has(name) || ['Married','Living together','Separated','Annulled / divorced'].includes(name)) return;
+    const K = FAM_COUPLE_KIND[name], c = K.c||INK, ln = (x1,y1,x2,y2,dash) => prims.push({ t:'line', x1, y1, x2, y2, c, w:0.04, dash:dash||false });
+    key.push({ w:0.62, text:name, draw:(x,y)=>{ const my=y+0.17, mx = K.house ? x+0.2 : x+0.31, at = K.house ? x+0.46 : mx;
+      const fwd = o => ln(at+o-0.07, y+0.3, at+o+0.07, y+0.04), back = o => ln(at+o-0.07, y+0.04, at+o+0.07, y+0.3);
+      ln(x, my, x+0.62, my, K.dash);
+      if(K.house) prims.push(coupleHouse(mx, my, c, 0.72));
+      if(K.mark==='sep') fwd(0); else if(K.mark==='legal') back(0); else if(K.mark==='div'){ fwd(-0.06); fwd(0.06); }
+      else if(K.mark==='null'){ fwd(-0.11); fwd(0); fwd(0.11); } else if(K.mark==='wid'){ ln(at-0.09, my-0.09, at+0.09, my+0.09); ln(at-0.09, my+0.09, at+0.09, my-0.09); } } }); });
   if(used.over) key.push({ w:0.62, text:'Third or fourth partner (line over the top)', draw:(x,y)=>{ [[x+0.06,y+0.3,x+0.06,y+0.08],[x+0.06,y+0.08,x+0.56,y+0.08],[x+0.56,y+0.08,x+0.56,y+0.3]].forEach(q=>prims.push({ t:'line', x1:q[0], y1:q[1], x2:q[2], y2:q[3], c:INK, w:0.04 })); } });
   const vseg = (x,y,dash) => prims.push({ t:'line', x1:x+0.31, y1:y+0.02, x2:x+0.31, y2:y+0.32, c:INK, w:0.04, dash });
   if(used.bond.has('Adopted')) key.push({ w:0.62, text:'Adopted (dashed line to the child)', draw:(x,y)=>vseg(x,y,true) });
@@ -514,7 +571,7 @@ function genogramSVG(G, unit){
   const u = unit||56, X = v => (v*u).toFixed(1), col = c => '#'+c;
   const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const idAt = p => p.id ? ` data-id="${esc(p.id).replace(/"/g,'&quot;')}"` : '';
-  const dash = (d, w) => d==='dot' ? ` stroke-dasharray="${(w*u*0.4).toFixed(1)} ${(0.11*u).toFixed(1)}" stroke-linecap="round"` : d ? ` stroke-dasharray="${(0.16*u).toFixed(1)} ${(0.12*u).toFixed(1)}"` : '';
+  const dash = (d, w) => { const q = genoDash(d, w, u); return q ? ` stroke-dasharray="${q[0]}"${q[1] ? ' stroke-linecap="round"' : ''}` : ''; };
   let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${X(G.w)} ${X(G.h)}" width="${X(G.w)}" height="${X(G.h)}" font-family="Arial, Helvetica, sans-serif"><rect width="100%" height="100%" fill="#ffffff"/>`;
   G.prims.forEach(p=>{
     if(p.t==='line') out += `<line x1="${X(p.x1)}" y1="${X(p.y1)}" x2="${X(p.x2)}" y2="${X(p.y2)}" stroke="${col(p.c)}" stroke-width="${X(p.w)}"${dash(p.dash, p.w)}${idAt(p)}/>`;
@@ -533,8 +590,8 @@ function genogramSVG(G, unit){
   return out + '</svg>';
 }
 /* ===== END shared block ===== */
-const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, memberLine,
-  relInfo, famIds, famSorted, famCount, famLinksOf, famLinkLine, famName, ageYears, memberSex, INK:GENO_INK, FILL:GENO_FILL, SLATE:GENO_SLATE };
+const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_COUPLE_GROUPS, FAM_COUPLE_OLD, FAM_COUPLE_KIND, famCoupleOptions, genoDash, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, memberLine,
+  relInfo, famIds, famSorted, famCount, famLinksOf, famLinkLine, famName, ageYears, memberSex, INK:GENO_INK, FILL:GENO_FILL, SLATE:GENO_SLATE, BLUE:GENO_BLUE };
 if (typeof window !== 'undefined') window.Geno = api;
 if (typeof module !== 'undefined') module.exports = api;
 })();

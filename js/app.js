@@ -774,7 +774,7 @@
         field(tx('Age'), textIn(sc, 'age', m.age, '33, 8 mo'), 'w1') +
         (!ri.sex ? field(tx('Sex'), '<select ' + sc + ' data-k="sex">' + opt('', tx('Not stated'), m.sex) + opt('Male', tx('Male'), m.sex) + opt('Female', tx('Female'), m.sex) + '</select>', 'w1') : '') + '</div>' +
       (ofLab || partner ? '<div class="flds">' + (ofLab ? field(tx(ofLab), '<select ' + sc + ' data-k="of">' + ofOptions(c, m) + '</select>', 'w2') : '') +
-        (partner ? field(tx('Couple’s relationship'), '<select ' + sc + ' data-k="relStatus">' + opt('', tx(r === 'exsp' ? 'Separated' : r === 'spouse' ? 'As set for the index person' : 'Married / partners'), m.relStatus) + G.FAM_COUPLE.map(function (o) { return opt(o, tx(o), m.relStatus); }).join('') + '</select>', 'w2') : '') + '</div>' : '') +
+        (partner ? field(tx('Couple’s relationship'), '<select ' + sc + ' data-k="relStatus">' + G.famCoupleOptions(m.relStatus, tx(r === 'exsp' ? 'Separated' : r === 'spouse' ? 'As set for the index person' : 'Married / partners'), tx) + '</select>', 'w2') : '') + '</div>' : '') +
       '<div class="chips">' + segBtns(sc, 'status', [['Living', tx('Living')], ['Deceased', tx('Deceased')]], m.status || 'Living') +
         chip(sc, 'psych', m.psych, tx('Psychiatric disorder')) + chip(sc, 'subst', m.subst, tx('Substance use disorder')) + chip(sc, 'withPt', m.withPt, tx('Lives with the index person')) +
         (kid ? chip(sc, 'twin', m.twin, tx('Twin')) : '') + '</div>' +
@@ -797,7 +797,7 @@
   function stepFamily(c) {
     G.famIds(c);
     var role = function (x) { return G.relInfo(x.rel).role; }, hasBoth = c.family.some(function (m) { return role(m) === 'father'; }) && c.family.some(function (m) { return role(m) === 'mother'; }), hasSp = c.family.some(function (m) { return role(m) === 'spouse'; });
-    var coupleOpts = [['', tx('Married')]].concat(G.FAM_COUPLE.slice(1).map(function (o) { return [o, tx(o)]; }));
+    var coupleSel = function (k, cur) { return '<select data-c="1" data-k="' + k + '">' + G.famCoupleOptions(cur, tx('Married / partners'), tx) + '</select>'; };
     var html = '<section class="card idx" style="--c:#1C7A86"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(tx('Index person')) + ' <small>' + esc(tx('the patient or client; drawn with a double outline')) + '</small></h2>' +
       '<div class="flds">' + field(tx('Name shown on the genogram'), textIn('data-c="1"', 'ptName', c.ptName, tx('Patient, initials or an alias')), 'w2') + field(tx('Age'), textIn('data-c="1"', 'ptAge', c.ptAge, '33'), 'w1') +
         '<div class="fld w2"><span>' + esc(tx('Sex')) + '</span>' + segBtns('data-c="1"', 'ptSex', [['Male', tx('Male')], ['Female', tx('Female')], ['', tx('Not stated')]], c.ptSex) + '</div></div>' +
@@ -809,8 +809,8 @@
       '<button type="button" class="qchip qchip--more" data-act="add" data-rel="">+ ' + esc(tx('Someone else…')) + '</button></div>' +
       '<p class="hint">' + esc(tx('Initials are enough. “Number of people” is only for a group: type 5 and one symbol stands for 5 former partners. Leave it empty for one person.')) + '</p></section>';
     if (hasBoth || hasSp) html += '<section class="card couple">' +
-      (hasBoth ? '<div class="fld"><span>' + esc(tx('Parents’ relationship')) + '</span>' + segBtns('data-c="1"', 'parentsRel', coupleOpts, c.parentsRel === 'Married' ? '' : c.parentsRel) + '</div>' : '') +
-      (hasSp ? '<div class="fld"><span>' + esc(tx('Index person and current spouse / partner')) + '</span>' + segBtns('data-c="1"', 'ptRel', coupleOpts, c.ptRel === 'Married' ? '' : c.ptRel) + '</div>' : '') + '</section>';
+      (hasBoth ? field(tx('Parents’ relationship'), coupleSel('parentsRel', c.parentsRel)) : '') +
+      (hasSp ? field(tx('Index person and current spouse / partner'), coupleSel('ptRel', c.ptRel)) : '') + '</section>';
     GROUPS.forEach(function (g) {
       var ms = c.family.filter(function (m) { return groupOf(m) === g; });
       if (!ms.length) return;
@@ -1100,6 +1100,16 @@
   window.__genoTest = { pdfFromJpeg: pdfFromJpeg, renderCanvas: renderCanvas, canvasBytes: canvasBytes, getChart: getChart };   // used by the checks in tools/
 
   /* ---------- Symbols library ---------- */
+  /* A couple's line drawn small for the symbols page: the same colour, pattern, house and marks as on the genogram */
+  function couplePrims(name) {
+    var K = G.FAM_COUPLE_KIND[name] || {}, c = K.c || G.INK, out = [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: c, w: 0.055, dash: K.dash || false }];
+    var ln = function (x1, y1, x2, y2) { out.push({ t: 'line', x1: x1, y1: y1, x2: x2, y2: y2, c: c, w: 0.055 }); };
+    var hx = K.mark ? 0.72 : 1, at = K.house ? 1.36 : 1, fwd = function (o) { ln(at + o - 0.1, 0.78, at + o + 0.1, 0.22); };
+    if (K.house) out.push({ t: 'poly', pts: [[-0.2, -0.03], [0, -0.23], [0.2, -0.03], [0.2, 0.19], [-0.2, 0.19]].map(function (q) { return [hx + q[0], 0.5 + q[1]]; }), c: c, w: 0.055, fill: 'FFFFFF', close: true });
+    if (K.mark === 'sep') fwd(0); else if (K.mark === 'legal') ln(at - 0.1, 0.22, at + 0.1, 0.78); else if (K.mark === 'div') { fwd(-0.1); fwd(0.1); }
+    else if (K.mark === 'null') { fwd(-0.2); fwd(0); fwd(0.2); } else if (K.mark === 'wid') { ln(at - 0.17, 0.33, at + 0.17, 0.67); ln(at - 0.17, 0.67, at + 0.17, 0.33); }
+    return out;
+  }
   var LIB = [   // English here; translated when drawn (VIEWS.symbols), so a language switch needs no reload
     { h: 'Who the person is', c: '#1C7A86', rows: [
       ['Male', 'Square.', symPrims({ sex: 'M' })], ['Female', 'Circle.', symPrims({ sex: 'F' })], ['Sex not stated', 'Diamond. Also used for a group of children of both sexes.', symPrims({ sex: 'U' })],
@@ -1115,9 +1125,30 @@
       ['Lives with the index person', 'A small house beside the symbol.', [{ t: 'poly', pts: [[0.25, 0.62], [0.6, 0.3], [0.95, 0.62], [0.95, 0.98], [0.25, 0.98]], c: G.SLATE, w: 0.03, fill: G.SLATE, close: true }]]] },
     { h: 'Couples and children', c: '#C2337A', rows: [
       ['Married / partners', 'A solid line between two people.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }], 2],
-      ['Living together', 'A dashed line.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055, dash: true }], 2],
-      ['Separated', 'One slash across the line.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.9, y1: 0.78, x2: 1.1, y2: 0.22, c: G.INK, w: 0.055 }], 2],
-      ['Annulled / divorced', 'Two slashes across the line.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.8, y1: 0.78, x2: 1.0, y2: 0.22, c: G.INK, w: 0.055 }, { t: 'line', x1: 1.0, y1: 0.78, x2: 1.2, y2: 0.22, c: G.INK, w: 0.055 }], 2],
+      ['Separated', 'One slash across the line.', couplePrims('Separated'), 2],
+      ['Legal separation', 'One slash leaning the other way: a legal separation has been filed or granted.', couplePrims('Legal separation'), 2],
+      ['Divorce', 'Two slashes across the line.', couplePrims('Divorce'), 2],
+      ['Nullity', 'Three slashes: the marriage was annulled or declared void.', couplePrims('Nullity'), 2],
+      ['Widowed', 'A cross on the line: one spouse died during the marriage. Use it mainly when the surviving spouse has a new partner.', couplePrims('Widowed'), 2],
+      ['Engagement', 'A blue dashed line. Blue lines are for couples who are not married.', couplePrims('Engagement'), 2],
+      ['Engagement and cohabitation', 'Blue dashed line with a small house: engaged and living together.', couplePrims('Engagement and cohabitation'), 2],
+      ['Engagement and separation', 'Blue dashed line with a slash: the engagement was broken.', couplePrims('Engagement and separation'), 2],
+      ['Legal cohabitation', 'Dash-and-dot line with a house: living together under a written or registered agreement.', couplePrims('Legal cohabitation'), 2],
+      ['Legal cohabitation and separation in fact', 'The same with a slash: no longer living together, but the agreement has not been ended.', couplePrims('Legal cohabitation and separation in fact'), 2],
+      ['Legal cohabitation and legal separation', 'The same with a slash leaning the other way: the agreement has been legally ended.', couplePrims('Legal cohabitation and legal separation'), 2],
+      ['Cohabitation', 'Dotted line with a house: living together as a couple without being married (live-in partners).', couplePrims('Cohabitation'), 2],
+      ['Cohabitation and separation', 'Dotted line with a house and a slash: they no longer live together.', couplePrims('Cohabitation and separation'), 2],
+      ['Non-sentimental cohabitation', 'Widely spaced dots with a house: living together without affection as a couple.', couplePrims('Non-sentimental cohabitation'), 2],
+      ['Non-sentimental cohabitation and separation', 'Widely spaced dots with a house and a slash: they no longer live together.', couplePrims('Non-sentimental cohabitation and separation'), 2],
+      ['Committed relationship', 'Short blue dashes: a long-term relationship, not living together.', couplePrims('Committed relationship'), 2],
+      ['Committed relationship and separation', 'Short blue dashes with a slash: the relationship ended.', couplePrims('Committed relationship and separation'), 2],
+      ['Casual relationship or dating', 'A blue dotted line: seeing each other or dating, short-term.', couplePrims('Casual relationship or dating'), 2],
+      ['Casual relationship and separation', 'Blue dotted line with a slash: no longer dating (a former boyfriend or girlfriend).', couplePrims('Casual relationship and separation'), 2],
+      ['Temporary relation / one night stand', 'A long dash and two dots: a brief relation. Add it when a child was born from it.', couplePrims('Temporary relation / one night stand'), 2],
+      ['Love affair', 'A pink dash-and-dot line.', couplePrims('Love affair'), 2],
+      ['Love affair and separation', 'Pink line with a slash: the affair ended.', couplePrims('Love affair and separation'), 2],
+      ['Rape / forced relationship', 'Widely spaced red dots. Used mostly in therapy, or when a child was born from it.', couplePrims('Rape / forced relationship'), 2],
+      ['Other or unknown', 'A grey line: a relationship that is not in this list, or is not known.', couplePrims('Other or unknown'), 2],
       ['Children', 'Hang from the line between their parents, oldest on the left.', [{ t: 'line', x1: 1, y1: 0.1, x2: 1, y2: 0.45, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.4, y1: 0.45, x2: 1.6, y2: 0.45, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.4, y1: 0.45, x2: 0.4, y2: 0.9, c: G.INK, w: 0.055 }, { t: 'line', x1: 1.6, y1: 0.45, x2: 1.6, y2: 0.9, c: G.INK, w: 0.055 }], 2],
       ['Adopted child', 'A dashed line down to the child.', [{ t: 'line', x1: 0.6, y1: 0.1, x2: 0.6, y2: 1.1, c: G.INK, w: 0.055, dash: true }]],
       ['Foster child', 'A dotted line down to the child.', [{ t: 'line', x1: 0.6, y1: 0.1, x2: 0.6, y2: 1.1, c: G.INK, w: 0.055, dash: 'dot' }]],
@@ -1146,6 +1177,7 @@
     ['Add the family with one tap', 'Tap + Father, + Mother, + Sister and so on. Each person appears as a row; tap a row to open it and add the age, occupation and conditions. “Someone else…” has every other relationship: step-parents, half-siblings, former partners, nephews and nieces, grandchildren, grandparents and great-grandparents, aunts and uncles, and cousins.'],
     ['Oldest to youngest', 'Brothers, sisters and children are placed by age, oldest on the left, whatever order you typed them in. Ages such as “8 mo” or “1 y 6 mo” are understood. For people of the same age, use Move up and Move down; for twins, turn on Twin for each of them.'],
     ['Children with different partners', 'Add each partner first (Husband, Wife, Partner, Former partner). Then open the child and choose the other parent. Leave it on the first choice and the child goes with the current spouse or partner.'],
+    ['Couples: married, engaged, living together, dating', 'Open a spouse, partner or former partner and choose “Couple’s relationship”. The list is grouped: Married (separated, legal separation, divorce, nullity, widowed), Engaged, Living together, Not living together (committed, casual, temporary, love affair) and Other. Married couples are joined by a dark line; couples who are not married by a blue line. A small house on the line means they live together, and a slash means they have separated. Symbols and lines shows every one.'],
     ['Step-parents and half-siblings', 'A stepfather is drawn beside the mother, a stepmother beside the father. A paternal half-sibling hangs between the father and the stepmother; if no stepmother was added, a dashed “?” parent is drawn.'],
     ['Great-grandparents', 'Add the grandparent first, then the great-grandfather or great-grandmother, and choose whose parent they are. Each grandparent has room for two parents.'],
     ['Cousins', 'Add the aunt or uncle first, then add the cousin and choose whose child they are. Paternal cousins are drawn on the left, maternal cousins on the right.'],

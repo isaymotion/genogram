@@ -4,6 +4,18 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.3.0',
+    date: '2026-11-13',
+    title: 'Many more kinds of couple',
+    items: [
+      { type: 'feature', text: 'The couple’s relationship now has 25 choices in groups: Married (separated, legal separation, divorce, nullity, widowed), Engaged, Living together, Not living together (committed, casual, temporary, love affair) and Other.' },
+      { type: 'feature', text: 'Married couples are joined by a dark line and couples who are not married by a blue line. A small house on the line means they live together; a slash means they have separated. The key under the genogram names each line it uses.', href: '#/symbols' },
+      { type: 'update', text: '“Parents’ relationship” and “Index person and current spouse / partner” are now lists instead of four buttons.' },
+      { type: 'update', text: 'Genograms made earlier look exactly the same. “Living together” and “Annulled / divorced” on older charts are kept as they are; new entries use Cohabitation, Divorce or Nullity.' },
+      { type: 'content', text: 'Symbols and lines shows every new line, and the guide has a new section on couples. The Tagalog for these is a first draft.', href: '#/symbols' }
+    ]
+  },
+  {
     version: '1.2.0',
     date: '2026-11-12',
     title: 'Great-grandparents, four partners and Tagalog',
