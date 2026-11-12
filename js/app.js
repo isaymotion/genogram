@@ -483,6 +483,84 @@
       return '<label><input type="radio" name="' + esc(name) + '" value="' + esc(o[0]) + '"' + (cur === o[0] ? ' checked' : '') + '><span>' + esc(o[1]) + '</span></label>';
     }).join('') + '</div></fieldset>';
   }
+  /* ===== Passcode lock. It closes the app to someone who picks up the phone; it does not encrypt what is saved. =====
+     Only a salted PBKDF2 hash of the passcode is kept, under the key "lock" (left out of backups). */
+  var LOCK = store.get('lock', null), lockOK = !!(window.crypto && window.crypto.subtle && window.TextEncoder), lockFails = 0, lockUntil = 0, hiddenAt = 0;
+  var LOCK_AFTER = 2 * 60 * 1000;   // lock again after this long in the background
+  if (LOCK && (!LOCK.salt || !LOCK.hash)) LOCK = null;
+  function b64(buf) { var b = new Uint8Array(buf), o = '', i; for (i = 0; i < b.length; i++) o += String.fromCharCode(b[i]); return btoa(o); }
+  function unb64(str) { var bin = atob(str), a = new Uint8Array(bin.length), i; for (i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+  function lockHash(pass, salt, iter) {
+    return window.crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveBits']).then(function (k) {
+      return window.crypto.subtle.deriveBits({ name: 'PBKDF2', salt: unb64(salt), iterations: iter, hash: 'SHA-256' }, k, 256); }).then(b64);
+  }
+  function lockCheck(pass) { return LOCK ? lockHash(pass, LOCK.salt, LOCK.iter || 150000).then(function (h) { return h === LOCK.hash; }) : Promise.resolve(true); }
+  function lockSet(pass) {
+    var salt = b64(window.crypto.getRandomValues(new Uint8Array(16)));
+    return lockHash(pass, salt, 150000).then(function (h) { LOCK = { salt: salt, hash: h, iter: 150000 }; store.set('lock', LOCK); });
+  }
+  function lockCard() {
+    var note = '<p class="hint">The lock keeps the app closed to someone who picks up this phone or computer. It does not encrypt what is saved, and a forgotten passcode cannot be recovered: export a backup first.</p>';
+    if (!lockOK) return '<p>The passcode lock needs a newer browser and a secure (https) page.</p>';
+    if (LOCK) return '<p><strong>Passcode lock is on.</strong> The app asks for the passcode when it opens, and after two minutes in the background.</p>' +
+      '<div class="flds">' + field('Current passcode', '<input type="password" id="lk-cur" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
+      '<p class="lockcard__acts"><button type="button" class="btn" data-lock="now">Lock now</button><button type="button" class="btn" data-lock="off">Turn off the lock</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
+    return '<p><strong>Passcode lock is off.</strong> Choose 4 to 12 digits.</p>' +
+      '<div class="flds">' + field('New passcode', '<input type="password" id="lk-new" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + field('Type it again', '<input type="password" id="lk-new2" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
+      '<p class="lockcard__acts"><button type="button" class="btn btn--solid" data-lock="on">Turn on the lock</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
+  }
+  function lockShow() {
+    if (!LOCK || document.getElementById('lockscreen')) return;
+    if (saveTimer) saveNow();
+    document.documentElement.classList.add('locked');
+    var el = document.createElement('div'); el.id = 'lockscreen'; el.className = 'lockscreen'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'lock-h');
+    el.innerHTML = '<form class="lockscreen__box" autocomplete="off"><img src="icons/icon-192.png" alt="" width="64" height="64"><h1 id="lock-h">' + esc(APP_NAME) + ' is locked</h1>' +
+      '<label class="fld"><span>Passcode</span><input type="password" id="lock-in" inputmode="numeric" autocomplete="off" maxlength="12"></label>' +
+      '<button type="submit" class="btn btn--solid">Unlock</button><p class="status" id="lock-status" role="status" aria-live="polite"></p>' +
+      '<details class="lockscreen__forgot"><summary>Forgot the passcode?</summary><p>The passcode cannot be recovered. You can erase the genograms saved in this app on this device and start again. If you exported a backup, you can import it afterwards.</p>' +
+      '<button type="button" class="btn" id="lock-erase">Erase the genograms and remove the lock</button></details></form>';
+    document.body.appendChild(el);
+    var input = el.querySelector('#lock-in'), status = el.querySelector('#lock-status');
+    setTimeout(function () { input.focus(); }, 30);
+    el.querySelector('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var wait = Math.ceil((lockUntil - Date.now()) / 1000);
+      if (wait > 0) { status.textContent = 'Too many tries. Wait ' + wait + ' seconds.'; return; }
+      lockCheck(input.value).then(function (ok) {
+        if (ok) { lockFails = 0; el.remove(); document.documentElement.classList.remove('locked'); route({ keepScroll: true }); return; }
+        lockFails++; input.value = ''; input.focus();
+        if (lockFails >= 5) { lockUntil = Date.now() + 30000; lockFails = 0; status.textContent = 'Too many tries. Wait 30 seconds.'; } else status.textContent = 'That passcode is not right.';
+      }, function () { status.textContent = 'The passcode could not be checked on this browser.'; });
+    });
+    el.querySelector('#lock-erase').addEventListener('click', function () {
+      if (!window.confirm('Erase every genogram saved in this app on this device, and remove the lock? This cannot be undone.')) return;
+      try { var keys = [], i; for (i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0) keys.push(k); } keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e2) {}
+      location.reload();
+    });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { hiddenAt = Date.now(); if (saveTimer) saveNow(); }
+    else if (LOCK && hiddenAt && Date.now() - hiddenAt > LOCK_AFTER) lockShow();
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-lock]') : null; if (!b) return;
+    var act = b.getAttribute('data-lock'), st = document.getElementById('lk-status'), tell = function (m) { if (st) st.textContent = m; };
+    if (act === 'now') { lockShow(); return; }
+    if (act === 'on') {
+      var a = (document.getElementById('lk-new') || {}).value || '', a2 = (document.getElementById('lk-new2') || {}).value || '';
+      if (!/^\d{4,12}$/.test(a)) { tell('Use 4 to 12 digits.'); return; }
+      if (a !== a2) { tell('The two passcodes are not the same.'); return; }
+      lockSet(a).then(function () { route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = 'The lock is on.'; }, function () { tell('The lock could not be turned on in this browser.'); });
+      return;
+    }
+    if (act === 'off') {
+      lockCheck((document.getElementById('lk-cur') || {}).value || '').then(function (ok) {
+        if (!ok) { tell('That passcode is not right.'); return; }
+        LOCK = null; store.del('lock'); route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = 'The lock is off.';
+      }, function () { tell('The passcode could not be checked on this browser.'); });
+    }
+  });
+
   VIEWS.about = function () {
     var sizes = TEXT_SIZES.map(function (z) { return [z[0], t(z[1])]; });
     return '<div class="wrap page"><header class="page__head"><h1>' + esc(t('nav.about')) + '</h1><p>' + esc(META.tagline || '') + '</p></header>' +
@@ -492,6 +570,7 @@
         segGroup('theme', t('theme.title'), [['auto', t('theme.auto')], ['light', t('theme.light')], ['dark', t('theme.dark')]], getTheme()) +
         segGroup('aboutTextSize', t('textsize.title'), sizes, String(store.get('textSize', '100'))) +
       '</div>' +
+      '<h2>Privacy</h2><div class="card lockcard">' + lockCard() + '</div>' +
       '<h2>' + esc(t('about.tips')) + '</h2><div class="card"><ul class="prose" style="margin:0;padding-left:1.2em">' +
         [1, 2, 3, 4, 5].map(function (i) { return '<li>' + rich(t('about.tip' + i)) + '</li>'; }).join('') +
       '</ul></div></div>';
@@ -539,7 +618,7 @@
   function touch(c) { c.updated = new Date().toISOString(); saveSoon(); }
   function blankChart(title) {
     return { id: uid('c'), title: title || 'Family genogram', created: new Date().toISOString(), updated: new Date().toISOString(),
-      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, family: [], links: [] };
+      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptSubst: false, ptBond: '', ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, initials: false, family: [], links: [] };
   }
   function addChart(c) { DB.byId[c.id] = c; DB.order.unshift(c.id); saveNow(); rebuildIndex(); return c; }
   function removeChart(id) { delete DB.byId[id]; DB.order = DB.order.filter(function (x) { return x !== id; }); saveNow(); rebuildIndex(); }
@@ -551,9 +630,10 @@
     c.family = [
       { id: 'pgf', name: 'Pedro', rel: 'Paternal grandfather', age: '70', status: 'Deceased', cond: 'Stroke' },
       { id: 'pgm', name: 'Rosa', rel: 'Paternal grandmother', age: '85' },
-      { id: 'fa', name: 'Ramon', rel: 'Father', age: '62', occ: 'tricycle driver', psych: true, cond: 'Alcohol use disorder' },
+      { id: 'fa', name: 'Ramon', rel: 'Father', age: '62', occ: 'tricycle driver', subst: true, cond: 'Alcohol use disorder' },
       { id: 'mo', name: 'Lourdes', rel: 'Mother', age: '58', occ: 'vendor', cond: 'Hypertension', withPt: true },
       { id: 'un', name: 'Ben', rel: 'Paternal uncle', age: '60' },
+      { id: 'co', name: 'Nico', rel: 'Male cousin', age: '31', of: 'un', bond: 'Adopted' },
       { id: 'b1', name: 'Jun', rel: 'Brother', age: '38', occ: 'seafarer' },
       { id: 'b1w', name: 'Tess', rel: "Sibling's spouse / partner", sex: 'Female', age: '36', of: 'b1' },
       { id: 'n1', name: 'Kiko', rel: 'Nephew', age: '9', of: 'b1' },
@@ -561,15 +641,23 @@
       { id: 'h', name: 'Marco', rel: 'Husband', age: '36', occ: 'engineer', withPt: true },
       { id: 'k1', name: 'Bea', rel: 'Daughter', age: '8', twin: true, withPt: true },
       { id: 'k2', name: 'Migo', rel: 'Son', age: '8', twin: true, withPt: true },
+      { id: 'k0', name: '', rel: 'Child (sex not stated)', age: '', preg: 'Miscarriage' },
       { id: 'k3', name: 'Baby', rel: 'Son', age: '8 mo', withPt: true }
     ];
     c.links = [{ a: 'pt', type: 'Conflictual', b: 'fa' }, { a: 'pt', type: 'Very close / enmeshed', b: 'mo' }, { a: 'pt', type: 'Close', b: 's1' }, { a: 'b1', type: 'Distant', b: 'fa' }];
     return c;
   }
   /* What the drawing engine expects */
+  /* "Maria Clara Santos" -> "M.C.S."; text that is already initials (AA, J.R.) is left alone */
+  function initialsOf(s) {
+    s = String(s || '').trim();
+    if (!s || /^([A-Z]\.?){1,4}$/.test(s)) return s;
+    return s.split(/[\s\-]+/).map(function (w) { var ch = w.replace(/^[^A-Za-z\u00C0-\u024F0-9]+/, '').charAt(0); return ch ? ch.toUpperCase() + '.' : ''; }).join('');
+  }
   function toEngine(c) {
-    return { agesex: (c.ptAge || '') + ' / ' + (c.ptSex || ''), parentsRel: c.parentsRel, ptRel: c.ptRel, genoPtName: c.ptName, genoPtOcc: c.ptOcc, genoPtCond: c.ptCond,
-      genoPtFill: c.ptFill !== false, genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, family: c.family, famLinks: c.links };
+    var ini = !!c.initials, fam = !ini ? c.family : c.family.map(function (m) { if (!m || !m.name) return m; var o = {}; for (var k in m) if (has(m, k)) o[k] = m[k]; o.name = initialsOf(m.name); return o; });
+    return { agesex: (c.ptAge || '') + ' / ' + (c.ptSex || ''), parentsRel: c.parentsRel, ptRel: c.ptRel, genoPtName: ini ? initialsOf(c.ptName) : c.ptName, genoPtOcc: c.ptOcc, genoPtCond: c.ptCond,
+      genoPtFill: c.ptFill !== false, genoPtSubst: !!c.ptSubst, genoPtBond: c.ptBond || '', genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, family: fam, famLinks: c.links };
   }
   function chartTitleLine(c) { var d = new Date(); return (c.title || 'Family genogram') + ' (' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ')'; }
   function layoutOf(c, withTitle) { G.famIds(c); return G.layout(toEngine(c), withTitle && c.showTitle !== false ? { title: chartTitleLine(c) } : {}); }
@@ -580,6 +668,7 @@
     { key: 'gp', label: 'Grandparents', c: '#C77700', roles: ['pgf', 'pgm', 'mgf', 'mgm'] },
     { key: 'par', label: 'Parents, aunts and uncles', c: '#D4502A', roles: ['father', 'mother', 'stepfa', 'stepmo', 'pside', 'mside'] },
     { key: 'sib', label: 'Brothers and sisters', c: '#0E8A8A', roles: ['sib', 'phalf', 'mhalf'] },
+    { key: 'cous', label: 'Cousins', c: '#8A5A2B', roles: ['cousin'] },
     { key: 'part', label: 'Spouse and partners', c: '#C2337A', roles: ['spouse', 'exsp'] },
     { key: 'kid', label: 'Children', c: '#2E8B4F', roles: ['child'] },
     { key: 'sibfam', label: 'Siblings’ families', c: '#2F6FD0', roles: ['sibsp', 'nib'] },
@@ -591,17 +680,23 @@
 
   /* ---------- small symbol pictures (rows, library) ---------- */
   function miniSVG(prims, w, h, px) { return G.svg({ w: w, h: h, prims: prims }, px || 34); }
-  function symPrims(o) {   // o: {sex, fill, dead, pt, text, ghost}
+  function halfArc(x, y, s) { var a = [], i; for (i = 0; i <= 16; i++) a.push([x + s / 2 - Math.cos(Math.PI * i / 16) * s / 2, y + s / 2 + Math.sin(Math.PI * i / 16) * s / 2]); return a; }
+  function symPrims(o) {   // o: {sex, fill, subst, dead, pt, text, ghost}
     var g = o.sex === 'F' ? 'ellipse' : o.sex === 'U' ? 'diamond' : 'rect', x = 0.15, y = 0.15, s = 0.9, out = [];
     out.push({ t: 'shape', g: g, x: x, y: y, w: s, h: s, fill: o.fill ? G.FILL : 'FFFFFF', c: o.ghost ? G.SLATE : G.INK, sw: 0.055, dash: !!o.ghost,
       text: o.text ? { t: String(o.text), fs: String(o.text).length > 2 ? 0.28 : 0.38, b: true, c: o.fill ? 'FFFFFF' : G.INK } : null });
+    if (o.subst) { out.push({ t: 'poly', pts: g === 'ellipse' ? halfArc(x, y, s) : g === 'diamond' ? [[x, y + s / 2], [x + s / 2, y + s], [x + s, y + s / 2]] : [[x, y + s / 2], [x, y + s], [x + s, y + s], [x + s, y + s / 2]], c: G.INK, w: 0.03, fill: G.INK, close: true }); out[0].text = null; }
     if (o.pt) out.push({ t: 'shape', g: g, x: x + 0.11, y: y + 0.11, w: s - 0.22, h: s - 0.22, fill: '', c: o.fill ? 'FFFFFF' : G.INK, sw: 0.045 });
     if (o.dead) { out.push({ t: 'line', x1: 0.05, y1: 0.05, x2: 1.15, y2: 1.15, c: G.INK, w: 0.05 }); out.push({ t: 'line', x1: 1.15, y1: 0.05, x2: 0.05, y2: 1.15, c: G.INK, w: 0.05 }); }
     return out;
   }
   function memberIcon(m) {
     var age = String(m.age || '').replace(/[^0-9]/g, '').slice(0, 3), n = G.famCount(m);
-    return miniSVG(symPrims({ sex: G.memberSex(m), fill: !!m.psych, dead: m.status === 'Deceased', text: n ? '×' + n : age }), 1.2, 1.2, 36);
+    var pg = G.famPreg(m);
+    if (pg === 'Pregnancy') return miniSVG([{ t: 'poly', pts: [[0.6, 0.2], [1.05, 1.0], [0.15, 1.0]], c: G.INK, w: 0.055, fill: 'FFFFFF', close: true }], 1.2, 1.2, 36);
+    if (pg === 'Miscarriage') return miniSVG([{ t: 'shape', g: 'ellipse', x: 0.4, y: 0.4, w: 0.4, h: 0.4, fill: G.INK, c: G.INK, sw: 0.03 }], 1.2, 1.2, 36);
+    if (pg === 'Abortion') return miniSVG([{ t: 'line', x1: 0.38, y1: 0.38, x2: 0.82, y2: 0.82, c: G.INK, w: 0.07 }, { t: 'line', x1: 0.82, y1: 0.38, x2: 0.38, y2: 0.82, c: G.INK, w: 0.07 }], 1.2, 1.2, 36);
+    return miniSVG(symPrims({ sex: G.memberSex(m), fill: !!m.psych, subst: !!m.subst, dead: m.status === 'Deceased' || pg === 'Stillbirth', text: pg ? '' : n ? '×' + n : age }), 1.2, 1.2, 36);
   }
   function who(m) { return m.name ? m.name + (m.rel ? ' (' + m.rel + ')' : '') : (G.famCount(m) ? G.famCount(m) + ' × ' : '') + (m.rel || 'No name yet'); }
 
@@ -615,10 +710,10 @@
     return '<section class="hero"><div class="wrap hero__inner">' +
         '<p class="hero__kicker">Genogram maker</p><h1>Draw the family, <em>see the pattern.</em></h1>' +
         '<p class="hero__lead">Add the family, mark how people relate, and the genogram draws itself with standard symbols and a key that matches what is on the chart.</p>' +
-        '<p class="hero__actions"><button type="button" class="btn btn--solid" data-act="new">New genogram</button> <button type="button" class="btn" data-act="sample">Open a sample family</button></p>' +
+        '<p class="hero__actions"><button type="button" class="btn btn--solid" data-act="new">New genogram</button> <button type="button" class="btn" data-act="sample">Open a sample family</button> <label class="btn" for="open-file">Open a genogram file</label><input type="file" id="open-file" class="sr-only" accept=".json,application/json"></p>' +
       '</div></section>' +
       '<div class="wrap home">' +
-        '<h2 class="home__h">Your genograms</h2>' +
+        '<h2 class="home__h">Your genograms</h2><p class="status" id="ed-status" role="status" aria-live="polite"></p>' +
         (list.length
           ? '<div class="charts">' + list.map(function (c) {
               var L = null; try { L = layoutOf(c, false); } catch (e) { L = null; }
@@ -639,7 +734,7 @@
 
   /* ---------- Editor ---------- */
   var openMember = null;      // id of the member whose editor is open
-  var zoom = 'fit';
+  var focusMember = null;     // set when a symbol on the chart was tapped: the Family step opens and scrolls to that person
   var STEPS = [['family', 'Family', '#D4502A'], ['lines', 'Relationships', '#0E8A8A'], ['view', 'Genogram', '#C2337A']];
   TITLES.chart = 'Genogram';
   function opt(val, lab, cur) { return '<option value="' + esc(val) + '"' + (String(val) === String(cur || '') ? ' selected' : '') + '>' + esc(lab) + '</option>'; }
@@ -653,14 +748,15 @@
     groups.forEach(function (g) { out += '<optgroup label="' + esc(g) + '">' + G.FAMILY_RELS.filter(function (r) { return r.g === g; }).map(function (r) { return opt(r.rel, r.rel, cur); }).join('') + '</optgroup>'; });
     return out;
   }
+  function bondOptions(cur) { return opt('', 'By birth', cur) + G.FAM_BOND.map(function (o) { return opt(o, o === 'Foster' ? 'Foster child' : o, cur); }).join(''); }
   function ofOptions(c, m) {
     var r = G.relInfo(m.rel).role, role = function (x) { return G.relInfo(x.rel).role; };
     if (r === 'child') return opt('', 'Current spouse / partner (or the first one listed)', m.of) + c.family.filter(function (x) { return ['spouse', 'exsp'].indexOf(role(x)) >= 0; }).map(function (p) { return opt(p.id, who(p), m.of); }).join('') + opt('none', 'Not listed (index person only)', m.of);
-    var hosts = c.family.filter(function (x) { return (r === 'sibsp' || r === 'nib') ? ['sib', 'phalf', 'mhalf'].indexOf(role(x)) >= 0 : role(x) === 'child'; });
+    var hosts = c.family.filter(function (x) { return (r === 'sibsp' || r === 'nib') ? ['sib', 'phalf', 'mhalf'].indexOf(role(x)) >= 0 : r === 'cousin' ? ['pside', 'mside'].indexOf(role(x)) >= 0 : role(x) === 'child'; });
     return hosts.length === 1 ? opt('', who(hosts[0]), m.of) : opt('', 'Choose…', m.of) + hosts.map(function (p) { return opt(p.id, who(p), m.of); }).join('');
   }
   function memberEditor(c, m, i) {
-    var ri = G.relInfo(m.rel), r = ri.role, sc = 'data-m="' + esc(m.id) + '"', ofLab = G.FAM_OF[r], partner = G.FAM_PARTNER_ROLES.indexOf(r) >= 0;
+    var ri = G.relInfo(m.rel), r = ri.role, sc = 'data-m="' + esc(m.id) + '"', ofLab = G.FAM_OF[r], partner = G.FAM_PARTNER_ROLES.indexOf(r) >= 0, kid = G.FAM_TWIN_ROLES.indexOf(r) >= 0;
     return '<div class="member__edit">' +
       '<div class="flds">' + field('Name', textIn(sc, 'name', m.name, 'Name or initials'), 'w2') +
         field('Relationship to the index person', '<select ' + sc + ' data-k="rel">' + relOptions(m.rel) + '</select>', 'w2') +
@@ -669,8 +765,10 @@
       (ofLab || partner ? '<div class="flds">' + (ofLab ? field(ofLab, '<select ' + sc + ' data-k="of">' + ofOptions(c, m) + '</select>', 'w2') : '') +
         (partner ? field('Couple’s relationship', '<select ' + sc + ' data-k="relStatus">' + opt('', r === 'exsp' ? 'Separated' : r === 'spouse' ? 'As set for the index person' : 'Married / partners', m.relStatus) + G.FAM_COUPLE.map(function (o) { return opt(o, o, m.relStatus); }).join('') + '</select>', 'w2') : '') + '</div>' : '') +
       '<div class="chips">' + segBtns(sc, 'status', [['Living', 'Living'], ['Deceased', 'Deceased']], m.status || 'Living') +
-        chip(sc, 'psych', m.psych, 'Psychiatric or substance use disorder') + chip(sc, 'withPt', m.withPt, 'Lives with the index person') +
-        (G.FAM_TWIN_ROLES.indexOf(r) >= 0 ? chip(sc, 'twin', m.twin, 'Twin') : '') + '</div>' +
+        chip(sc, 'psych', m.psych, 'Psychiatric disorder') + chip(sc, 'subst', m.subst, 'Substance use disorder') + chip(sc, 'withPt', m.withPt, 'Lives with the index person') +
+        (kid ? chip(sc, 'twin', m.twin, 'Twin') : '') + '</div>' +
+      (kid ? '<div class="flds">' + field('Joined the family', '<select ' + sc + ' data-k="bond">' + bondOptions(m.bond) + '</select>', 'w2') +
+        field('Pregnancy or loss', '<select ' + sc + ' data-k="preg">' + opt('', 'No (a living or deceased person)', m.preg) + opt('Pregnancy', 'Current pregnancy', m.preg) + G.FAM_PREG.slice(1).map(function (o) { return opt(o, o, m.preg); }).join('') + '</select>', 'w2') + '</div>' : '') +
       '<div class="flds">' + field('Occupation / role', textIn(sc, 'occ', m.occ, 'welder, sole earner'), 'w2') + field('Condition / illness', textIn(sc, 'cond', m.cond, 'MDD, hypertension'), 'w2') +
         field('Number of people (if a group)', textIn(sc, 'count', m.count, 'Leave empty for one person', ' inputmode="numeric"'), 'w2') + '</div>' +
       '<p class="member__acts"><button type="button" class="link-btn" data-act="up" data-id="' + esc(m.id) + '">Move up</button><button type="button" class="link-btn" data-act="down" data-id="' + esc(m.id) + '">Move down</button><button type="button" class="link-btn danger" data-act="rm" data-id="' + esc(m.id) + '">Remove</button></p></div>';
@@ -690,8 +788,9 @@
     var html = '<section class="card idx" style="--c:#1C7A86"><h2 class="grp__h"><span class="grp__dot"></span>Index person <small>the patient or client; drawn with a double outline</small></h2>' +
       '<div class="flds">' + field('Name shown on the genogram', textIn('data-c="1"', 'ptName', c.ptName, 'Patient, initials or an alias'), 'w2') + field('Age', textIn('data-c="1"', 'ptAge', c.ptAge, '33'), 'w1') +
         '<div class="fld w2"><span>Sex</span>' + segBtns('data-c="1"', 'ptSex', [['Male', 'Male'], ['Female', 'Female'], ['', 'Not stated']], c.ptSex) + '</div></div>' +
-      '<div class="flds">' + field('Occupation / role', textIn('data-c="1"', 'ptOcc', c.ptOcc, 'BS ME graduate, unemployed'), 'w2') + field('Condition / illness', textIn('data-c="1"', 'ptCond', c.ptCond, 'schizophrenia; CKD 3b'), 'w2') + '</div>' +
-      '<div class="chips">' + chip('data-c="1"', 'ptFill', c.ptFill !== false, 'Psychiatric or substance use disorder') + chip('data-c="1"', 'ptDead', c.ptDead, 'Deceased') + '</div></section>';
+      '<div class="flds">' + field('Occupation / role', textIn('data-c="1"', 'ptOcc', c.ptOcc, 'BS ME graduate, unemployed'), 'w2') + field('Condition / illness', textIn('data-c="1"', 'ptCond', c.ptCond, 'schizophrenia; CKD 3b'), 'w2') +
+        field('Joined the family', '<select data-c="1" data-k="ptBond">' + bondOptions(c.ptBond) + '</select>', 'w1') + '</div>' +
+      '<div class="chips">' + chip('data-c="1"', 'ptFill', c.ptFill !== false, 'Psychiatric disorder') + chip('data-c="1"', 'ptSubst', c.ptSubst, 'Substance use disorder') + chip('data-c="1"', 'ptDead', c.ptDead, 'Deceased') + '</div></section>';
     html += '<section class="quick"><h2 class="quick__h">Add a family member</h2><div class="quick__chips">' + QUICK.map(function (r) { var g = groupOf({ rel: r });
         return '<button type="button" class="qchip" style="--c:' + g.c + '" data-act="add" data-rel="' + esc(r) + '">+ ' + esc(r) + '</button>'; }).join('') +
       '<button type="button" class="qchip qchip--more" data-act="add" data-rel="">+ Someone else…</button></div>' +
@@ -724,10 +823,12 @@
   }
   function stepView(c) {
     var L = null; try { L = layoutOf(c, true); } catch (e) { L = null; }
+    viewNodes = L ? L.nodes : null;
     if (!L) return '<div class="empty"><h2>Nothing to draw yet</h2><p>Add at least one family member and the genogram appears here.</p><p><a class="btn btn--solid" href="#/chart/' + esc(c.id) + '">Add the family</a></p></div>';
-    return '<div class="viewbar"><div class="segb" role="group" aria-label="Size">' + [['fit', 'Fit to screen'], ['big', 'Larger']].map(function (o) { return '<button type="button" data-act="zoom" data-v="' + o[0] + '" aria-pressed="' + (zoom === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
-        chip('data-c="1"', 'showTitle', c.showTitle !== false, 'Show the title and date') + '</div>' +
-      '<div class="canvas' + (zoom === 'big' ? ' canvas--big' : '') + '" id="canvas">' + G.svg(L, zoom === 'big' ? 78 : 56) + '</div>' +
+    return '<div class="viewbar"><div class="segb" role="group" aria-label="Zoom"><button type="button" data-act="zoomout" aria-label="Zoom out">−</button><button type="button" data-act="zoomfit">Fit</button><button type="button" data-act="zoomin" aria-label="Zoom in">+</button></div>' +
+        chip('data-c="1"', 'showTitle', c.showTitle !== false, 'Show the title and date') + chip('data-c="1"', 'initials', c.initials, 'Initials only') + '</div>' +
+      '<div class="canvas canvas--pz" id="canvas"><div class="canvas__in" id="canvas-in">' + G.svg(L, VIEW_UNIT) + '</div></div>' +
+      '<p class="hint">Tap a person to edit them. Pinch, or use + and −, to zoom, then drag to move around.</p>' +
       (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">Not drawn</p>' + esc(L.left.join(', ')) + '. A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for two partners: put several former partners in one symbol with “Number of people”.</div>' : '') +
       (L.linksLeft.length ? '<div class="callout callout--caution"><p class="callout__title">Lines not drawn</p>' + esc(L.linksLeft.join('; ')) + '. One of the two people is not on the chart.</div>' : '') +
       '<p class="hint">The key lists only what this genogram uses. See <a href="#/symbols">Symbols and lines</a> for everything the app can draw.</p>';
@@ -742,12 +843,43 @@
       '<nav class="stepnav" aria-label="Steps">' + STEPS.map(function (s, i) { return '<a href="' + base + (s[0] === 'family' ? '' : '/' + s[0]) + '" style="--c:' + s[2] + '"' + (s[0] === step ? ' aria-current="step"' : '') + '><span>' + (i + 1) + '</span>' + s[1] + '</a>'; }).join('') + '</nav>' +
       '<div class="editor__body">' + (step === 'family' ? stepFamily(c) : step === 'lines' ? stepLines(c) : stepView(c)) + '</div>' +
       '<div class="actionbar"><span class="actionbar__n" id="pcount">' + n + (n === 1 ? ' person' : ' people') + ' on the chart</span><span class="actionbar__btns">' +
+        (step !== 'view' ? '<button type="button" class="btn" data-act="undo" id="undo-btn"' + (canUndo(c) ? '' : ' disabled') + '>Undo</button>' : '') +
         (step === 'family' ? '<a class="btn" href="' + base + '/lines">Relationships</a><a class="btn btn--solid" href="' + base + '/view">See the genogram</a>'
           : step === 'lines' ? '<a class="btn" href="' + base + '">Family</a><a class="btn btn--solid" href="' + base + '/view">See the genogram</a>'
-          : '<a class="btn" href="' + base + '">Edit</a><button type="button" class="btn" data-act="png"' + (c.family.length ? '' : ' disabled') + '>Save picture</button><button type="button" class="btn btn--solid" data-act="pdf"' + (c.family.length ? '' : ' disabled') + '>Save PDF</button>') +
+          : '<a class="btn" href="' + base + '">Edit</a><button type="button" class="btn" data-act="sharefile">Share file</button><button type="button" class="btn" data-act="png"' + (c.family.length ? '' : ' disabled') + '>Save picture</button><button type="button" class="btn btn--solid" data-act="pdf"' + (c.family.length ? '' : ' disabled') + '>Save PDF</button>') +
       '</span></div><p class="status" id="ed-status" role="status" aria-live="polite"></p></div>';
   };
   function curChart() { var el = main.querySelector('.editor'); return el ? getChart(el.getAttribute('data-chart')) : null; }
+  /* Undo: a copy of the genogram is kept before every change (this visit only; up to 60 steps per genogram) */
+  var undoStacks = {}, typingEl = null;
+  function canUndo(c) { return !!(c && undoStacks[c.id] && undoStacks[c.id].length); }
+  function snap(c) {
+    var st = undoStacks[c.id] || (undoStacks[c.id] = []), j = JSON.stringify(c);
+    if (st[st.length - 1] !== j) { st.push(j); if (st.length > 60) st.shift(); }
+    var ub = document.getElementById('undo-btn'); if (ub) ub.disabled = false;
+  }
+  function undoChart(c) {
+    if (!canUndo(c)) return false;
+    var prev = JSON.parse(undoStacks[c.id].pop());
+    DB.byId[c.id] = prev; typingEl = null; if (openMember && !memberByIdSafe(prev, openMember)) openMember = null;
+    saveNow(); rebuildIndex(); rerender(); say('Undone.'); return true;
+  }
+  function memberByIdSafe(c, id) { return (c.family || []).some(function (m) { return m && m.id === id; }); }
+  main.addEventListener('focusout', function () { typingEl = null; });
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z') return;
+    var tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'textarea') return;   // the field's own undo
+    var c = curChart(); if (c && canUndo(c)) { e.preventDefault(); undoChart(c); }
+  });
+  /* A short message at the bottom of the screen with one action (used for "Deleted. Undo") */
+  var snackTimer = null;
+  function snack(msg, label, fn) {
+    var el = document.getElementById('snack');
+    if (!el) { el = document.createElement('div'); el.id = 'snack'; el.className = 'snack'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.innerHTML = '<span>' + esc(msg) + '</span>' + (label ? '<button type="button" class="snack__btn">' + esc(label) + '</button>' : '');
+    el.hidden = false; clearTimeout(snackTimer); snackTimer = setTimeout(function () { el.hidden = true; }, 9000);
+    var b = el.querySelector('button'); if (b) b.addEventListener('click', function () { el.hidden = true; fn(); });
+  }
   function rerender() { route({ keepScroll: true }); }
   function say(msg) { var el = document.getElementById('ed-status'); if (el) el.textContent = msg || ''; }
   function memberById(c, id) { for (var i = 0; i < c.family.length; i++) if (c.family[i].id === id) return c.family[i]; return null; }
@@ -756,6 +888,7 @@
   main.addEventListener('input', function (e) {
     var el = e.target, c = curChart(); if (!c || !el.getAttribute) return;
     var k = el.getAttribute('data-k'); if (!k) return;
+    if (el !== typingEl || el.tagName === 'SELECT') { snap(c); typingEl = el; }   // one undo step per field visit
     if (el.getAttribute('data-c')) { c[k] = el.value; touch(c); if (k === 'title') rebuildIndex(); return; }
     if (el.getAttribute('data-m')) {
       var m = memberById(c, el.getAttribute('data-m')); if (!m) return;
@@ -778,24 +911,28 @@
     if (act === 'new') { var nc = addChart(blankChart('Family genogram')); openMember = null; location.hash = '#/chart/' + nc.id; return; }
     if (act === 'sample') { var sc = addChart(sampleChart()); location.hash = '#/chart/' + sc.id + '/view'; return; }
     if (act === 'dup') { var src = getChart(id); if (!src) return; var cp = JSON.parse(JSON.stringify(src)); cp.id = uid('c'); cp.title = (src.title || 'Family genogram') + ' (copy)'; cp.created = cp.updated = new Date().toISOString(); addChart(cp); rerender(); return; }
-    if (act === 'del') { var dc = getChart(id); if (dc && window.confirm('Delete “' + (dc.title || 'Family genogram') + '”? This cannot be undone.')) { removeChart(id); rerender(); } return; }
+    if (act === 'del') { var dc = getChart(id); if (!dc) return; var at0 = DB.order.indexOf(id); removeChart(id); rerender();
+      snack('Deleted “' + (dc.title || 'Family genogram') + '”.', 'Undo', function () { if (getChart(dc.id)) return; DB.byId[dc.id] = dc; DB.order.splice(Math.max(0, at0), 0, dc.id); saveNow(); rebuildIndex(); if (currentKey() === 'home') rerender(); });
+      return; }
     if (!c) return;
+    if (act === 'undo') { undoChart(c); return; }
     /* editor: switches */
     if (b.getAttribute('data-tog')) { var tk = b.getAttribute('data-tog'), tgt = b.getAttribute('data-m') ? memberById(c, b.getAttribute('data-m')) : c; if (!tgt) return;
-      tgt[tk] = !(tk === 'ptFill' || tk === 'byAge' || tk === 'showTitle' ? tgt[tk] !== false : tgt[tk]); touch(c); rerender(); return; }
-    if (b.getAttribute('data-set')) { var sk = b.getAttribute('data-set'), st2 = b.getAttribute('data-m') ? memberById(c, b.getAttribute('data-m')) : c; if (!st2) return; st2[sk] = b.getAttribute('data-v'); touch(c); rerender(); return; }
+      snap(c); tgt[tk] = !(tk === 'ptFill' || tk === 'byAge' || tk === 'showTitle' ? tgt[tk] !== false : tgt[tk]); touch(c); rerender(); return; }
+    if (b.getAttribute('data-set')) { var sk = b.getAttribute('data-set'), st2 = b.getAttribute('data-m') ? memberById(c, b.getAttribute('data-m')) : c; if (!st2) return; snap(c); st2[sk] = b.getAttribute('data-v'); touch(c); rerender(); return; }
     if (act === 'toggle') { openMember = openMember === id ? null : id; rerender(); return; }
-    if (act === 'add') { var m = { id: uid('f'), name: '', rel: b.getAttribute('data-rel') || '', age: '', status: 'Living' }; c.family.push(m); openMember = m.id; touch(c); rerender();
+    if (act === 'add') { snap(c); var m = { id: uid('f'), name: '', rel: b.getAttribute('data-rel') || '', age: '', status: 'Living' }; c.family.push(m); openMember = m.id; touch(c); rerender();
       var row = document.getElementById('m-' + m.id); if (row) { row.scrollIntoView({ block: 'center' }); var first = row.querySelector(m.rel ? 'input[data-k="name"]' : 'select[data-k="rel"]'); if (first) first.focus({ preventScroll: true }); } return; }
-    if (act === 'rm') { var rmm = memberById(c, id); if (!rmm) return; if ((rmm.name || rmm.cond) && !window.confirm('Remove ' + (rmm.name || 'this family member') + '?')) return;
-      c.family = c.family.filter(function (x) { return x !== rmm; }); c.family.forEach(function (x) { if (x.of === id) delete x.of; }); c.links = c.links.filter(function (l) { return l.a !== id && l.b !== id; }); openMember = null; touch(c); rerender(); return; }
+    if (act === 'rm') { var rmm = memberById(c, id); if (!rmm) return; snap(c);
+      c.family = c.family.filter(function (x) { return x !== rmm; }); c.family.forEach(function (x) { if (x.of === id) delete x.of; }); c.links = c.links.filter(function (l) { return l.a !== id && l.b !== id; }); openMember = null; touch(c); rerender(); say('Removed ' + (rmm.name || rmm.rel || 'the family member') + '. Tap Undo to bring them back.'); return; }
     if (act === 'up' || act === 'down') { var mm = memberById(c, id), g = groupOf(mm), same = c.family.filter(function (x) { return groupOf(x) === g; }), at = same.indexOf(mm), other = same[at + (act === 'up' ? -1 : 1)];
-      if (other) { var i1 = c.family.indexOf(mm), i2 = c.family.indexOf(other); c.family[i1] = other; c.family[i2] = mm; touch(c); rerender(); } return; }
-    if (act === 'sort') { c.family = G.famSorted({ family: c.family }); touch(c); rerender(); say('Sorted by generation and age.'); return; }
-    if (act === 'addl') { c.links.push({ a: 'pt', type: '', b: '' }); touch(c); rerender(); return; }
-    if (act === 'rml') { c.links.splice(+b.getAttribute('data-i'), 1); touch(c); rerender(); return; }
-    if (act === 'zoom') { zoom = b.getAttribute('data-v'); rerender(); return; }
+      if (other) { snap(c); var i1 = c.family.indexOf(mm), i2 = c.family.indexOf(other); c.family[i1] = other; c.family[i2] = mm; touch(c); rerender(); } return; }
+    if (act === 'sort') { snap(c); c.family = G.famSorted({ family: c.family }); touch(c); rerender(); say('Sorted by generation and age.'); return; }
+    if (act === 'addl') { snap(c); c.links.push({ a: 'pt', type: '', b: '' }); touch(c); rerender(); return; }
+    if (act === 'rml') { snap(c); c.links.splice(+b.getAttribute('data-i'), 1); touch(c); rerender(); return; }
+    if (act === 'zoomin' || act === 'zoomout' || act === 'zoomfit') { pzButton(act); return; }
     if (act === 'png' || act === 'pdf') { exportChart(c, act); return; }
+    if (act === 'sharefile') { shareChart(c); return; }
   });
 
   /* ---------- Saving the genogram as a picture or a PDF (made on the device) ---------- */
@@ -841,6 +978,112 @@
       return canvasBytes(cv, 'image/jpeg', 0.93).then(function (b) { deliver(pdfFromJpeg(b, cv.width, cv.height, c.title), fileBase(c) + '.pdf', 'application/pdf', 'PDF saved: ' + fileBase(c) + '.pdf'); });
     }).catch(function () { say('The genogram could not be saved. Try “Save picture”, or a smaller family.'); });
   }
+  /* One genogram as a file, to send to a colleague or open in PsychInterview (Family > Open a Genogram file) */
+  function shareChart(c) {
+    var payload = { app: 'genogram', kind: 'chart', format: 1, exported: new Date().toISOString(), attribution: ATTRIBUTION, chart: c };
+    deliver(JSON.stringify(payload, null, 1), fileBase(c) + '.genogram.json', 'application/json', 'File saved: ' + fileBase(c) + '.genogram.json');
+  }
+  var TEXT_KEYS = ['name', 'rel', 'age', 'sex', 'status', 'occ', 'cond', 'count', 'of', 'relStatus', 'bond', 'preg', 'desc'], FLAG_KEYS = ['psych', 'subst', 'withPt', 'twin'];
+  function cleanChart(src) {   // only the fields this app knows, as plain text and yes/no values
+    var c = blankChart('Family genogram'), txt = function (v) { return String(v == null ? '' : v).slice(0, 300); };
+    ['title', 'ptName', 'ptAge', 'ptSex', 'ptOcc', 'ptCond', 'ptBond', 'parentsRel', 'ptRel'].forEach(function (k) { if (src[k] != null) c[k] = txt(src[k]); });
+    ['ptSubst', 'ptDead', 'initials'].forEach(function (k) { c[k] = !!src[k]; });
+    ['ptFill', 'byAge', 'showTitle'].forEach(function (k) { c[k] = src[k] !== false; });
+    var ids = {};
+    c.family = (Array.isArray(src.family) ? src.family : []).slice(0, 200).filter(function (m) { return m && typeof m === 'object'; }).map(function (m) {
+      var o = { id: /^[\w-]{1,24}$/.test(String(m.id || '')) && !ids[m.id] && m.id !== 'pt' ? String(m.id) : uid('f') }; ids[o.id] = true;
+      TEXT_KEYS.forEach(function (k) { if (m[k] != null && m[k] !== '') o[k] = txt(m[k]); }); FLAG_KEYS.forEach(function (k) { if (m[k]) o[k] = true; });
+      if (!o.status) o.status = 'Living'; return o; });
+    c.links = (Array.isArray(src.links) ? src.links : []).slice(0, 300).filter(function (l) { return l && typeof l === 'object'; }).map(function (l) { return { a: txt(l.a).slice(0, 24), type: txt(l.type).slice(0, 40), b: txt(l.b).slice(0, 24) }; });
+    return c;
+  }
+  function openChartFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onerror = function () { say('That file could not be read.'); };
+    reader.onload = function () {
+      var p = null; try { p = JSON.parse(reader.result); } catch (e) {}
+      if (p && p.app === 'genogram' && p.data && !p.chart) { say('That is a full backup. Use “Import backup” at the bottom of the page.'); return; }
+      if (!p || p.app !== 'genogram' || p.kind !== 'chart' || !p.chart || typeof p.chart !== 'object') { say('That is not a genogram file from this app.'); return; }
+      var c = addChart(cleanChart(p.chart)); location.hash = '#/chart/' + c.id + (c.family.length ? '/view' : '');
+    };
+    reader.readAsText(file);
+  }
+  main.addEventListener('change', function (e) { if (e.target && e.target.id === 'open-file') { openChartFile(e.target.files && e.target.files[0]); e.target.value = ''; } });
+
+  /* ---------- The chart on screen: pinch or + / − to zoom, drag to move, tap a person to edit ---------- */
+  var pz = null;   // { cv, inner, w, h, fit, s, tx, ty }
+  var VIEW_UNIT = 56, viewNodes = null;   // pixels per symbol width on screen before zooming; the people on the chart being shown
+  function pzApply() {
+    var W = pz.cv.clientWidth, H = pz.cv.clientHeight, sw = pz.w * pz.s, sh = pz.h * pz.s;
+    pz.tx = sw <= W ? (W - sw) / 2 : Math.min(0, Math.max(W - sw, pz.tx));
+    pz.ty = sh <= H ? (H - sh) / 2 : Math.min(0, Math.max(H - sh, pz.ty));
+    pz.inner.style.transform = 'translate(' + pz.tx.toFixed(1) + 'px,' + pz.ty.toFixed(1) + 'px) scale(' + pz.s.toFixed(4) + ')';
+    var zoomed = pz.s > pz.fit * 1.01;
+    pz.cv.style.touchAction = zoomed ? 'none' : 'pan-y';   // at "fit" a finger still scrolls the page
+    pz.cv.classList.toggle('is-zoomed', zoomed);
+  }
+  function pzZoom(k, cx, cy) {   // zoom by k around a point inside the box
+    var s2 = Math.min(Math.max(pz.fit, pz.s * k), Math.max(pz.fit * 6, 3));
+    if (cx == null) { cx = pz.cv.clientWidth / 2; cy = pz.cv.clientHeight / 2; }
+    pz.tx = cx - (cx - pz.tx) * (s2 / pz.s); pz.ty = cy - (cy - pz.ty) * (s2 / pz.s); pz.s = s2; pzApply();
+  }
+  function pzInit() {
+    var cv = document.getElementById('canvas'), inner = document.getElementById('canvas-in'), svg = inner && inner.querySelector('svg');
+    pz = null; if (!cv || !svg) return;
+    var w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height')), W = cv.clientWidth, maxH = Math.max(260, window.innerHeight * 0.68);
+    var fit = Math.min(W / w, maxH / h, 1.5);
+    cv.style.height = Math.round(h * fit) + 'px';
+    pz = { cv: cv, inner: inner, w: w, h: h, fit: fit, s: fit, tx: 0, ty: 0 };
+    pzApply();
+    if (cv._pz) return; cv._pz = true;   // a resize sets up the same box again
+    cv.addEventListener('pointerdown', pzDown);
+    cv.addEventListener('wheel', function (e) { if (!pz || !(e.ctrlKey || e.metaKey)) return; e.preventDefault(); var r = cv.getBoundingClientRect(); pzZoom(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  }
+  function pzButton(act) { if (!pz) return; if (act === 'zoomfit') { pz.s = pz.fit; pz.tx = pz.ty = 0; pzApply(); } else pzZoom(act === 'zoomin' ? 1.4 : 1 / 1.4); }
+  var pzPts = {}, pzMoved = false, pzDist = 0, pzT0 = 0;
+  function pzCount() { return Object.keys(pzPts).length; }
+  function pzDown(e) {
+    if (!pz || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (!pzCount()) { pzMoved = false; pzT0 = Date.now(); }
+    pzPts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (pzCount() === 2) { var k = Object.keys(pzPts), a = pzPts[k[0]], b = pzPts[k[1]]; pzDist = Math.hypot(a.x - b.x, a.y - b.y) || 1; pzMoved = true; }
+  }
+  window.addEventListener('pointermove', function (e) {
+    var p = pzPts[e.pointerId]; if (!pz || !p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (pzCount() === 1) {
+      if (Math.abs(dx) + Math.abs(dy) > 6) pzMoved = true;
+      if (pzMoved && pz.s > pz.fit * 1.01) { pz.tx += dx; pz.ty += dy; p.x = e.clientX; p.y = e.clientY; pzApply(); }
+    } else if (pzCount() === 2) {
+      p.x = e.clientX; p.y = e.clientY;
+      var k = Object.keys(pzPts), a = pzPts[k[0]], b = pzPts[k[1]], d = Math.hypot(a.x - b.x, a.y - b.y) || 1, r = pz.cv.getBoundingClientRect();
+      pzZoom(d / pzDist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top); pzDist = d;
+    }
+  });
+  function pzUp(e) {
+    if (!pzPts[e.pointerId]) return;
+    delete pzPts[e.pointerId];
+    if (e.type !== 'pointerup' || pzCount() || pzMoved || Date.now() - pzT0 > 600 || !pz) return;
+    var c = curChart(), r = pz.cv.getBoundingClientRect(); if (!c || !document.body.contains(pz.cv)) return;
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+    // which person is under the finger: the symbol and the first lines of the label under it (in chart units)
+    var ux = (e.clientX - r.left - pz.tx) / pz.s / VIEW_UNIT, uy = (e.clientY - r.top - pz.ty) / pz.s / VIEW_UNIT, id = null;
+    (viewNodes || []).forEach(function (n) { if (!n.ghost && ux >= n.x - 0.12 && ux <= n.x + 1.12 && uy >= n.y - 0.12 && uy <= n.y + 1.12 + (n.side ? 0 : Math.min(0.7, n.lab.h))) id = n.id; });
+    if (!id || (id !== 'pt' && !memberById(c, id))) return;
+    focusMember = id; if (id !== 'pt') openMember = id;
+    location.hash = '#/chart/' + c.id;
+  }
+  window.addEventListener('pointerup', pzUp); window.addEventListener('pointercancel', pzUp);
+  var pzResize = null;
+  window.addEventListener('resize', function () { clearTimeout(pzResize); pzResize = setTimeout(function () { if (document.getElementById('canvas')) pzInit(); }, 200); });
+  AFTER.chart = function (id, step) {
+    if (step === 'view') { pzInit(); return; }
+    if (!focusMember || step === 'lines') return;
+    var target = focusMember === 'pt' ? main.querySelector('.idx') : document.getElementById('m-' + focusMember); focusMember = null;
+    if (target) window.requestAnimationFrame(function () { target.scrollIntoView({ block: 'center' }); var f = target.querySelector('input[data-k="ptName"], input[data-k="name"]'); if (f) f.focus({ preventScroll: true }); });
+  };
+
   window.__genoTest = { pdfFromJpeg: pdfFromJpeg, renderCanvas: renderCanvas, canvasBytes: canvasBytes, getChart: getChart };   // used by the checks in tools/
 
   /* ---------- Symbols library ---------- */
@@ -851,7 +1094,9 @@
       ['Age', 'Written inside the symbol. Months are shortened, for example 8m.', symPrims({ sex: 'M', text: '33' })]] },
     { h: 'Status and marks', c: '#D4502A', rows: [
       ['Living', 'Empty symbol.', symPrims({ sex: 'M' })], ['Deceased', 'An X through the symbol.', symPrims({ sex: 'F', dead: true })],
-      ['Psychiatric or substance use disorder', 'Shaded symbol. Write the condition in “Condition / illness” so it shows under the name.', symPrims({ sex: 'M', fill: true })],
+      ['Psychiatric disorder', 'Shaded symbol. Write the condition in “Condition / illness” so it shows under the name.', symPrims({ sex: 'M', fill: true })],
+      ['Substance use disorder', 'The lower half is dark. It can be combined with the shading for a psychiatric disorder.', symPrims({ sex: 'M', subst: true })],
+      ['Both', 'Shaded, with a dark lower half.', symPrims({ sex: 'F', fill: true, subst: true })],
       ['Several people in one symbol', '×n inside the symbol, from “Number of people”: 5 former partners, 7 children.', symPrims({ sex: 'U', text: '×7' })],
       ['Parent not listed', 'Dashed symbol with a question mark, drawn for half-siblings when the other parent was not added.', symPrims({ sex: 'U', ghost: true, text: '?' })],
       ['Lives with the index person', 'A small house beside the symbol.', [{ t: 'poly', pts: [[0.25, 0.62], [0.6, 0.3], [0.95, 0.62], [0.95, 0.98], [0.25, 0.98]], c: G.SLATE, w: 0.03, fill: G.SLATE, close: true }]]] },
@@ -861,6 +1106,12 @@
       ['Separated', 'One slash across the line.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.9, y1: 0.78, x2: 1.1, y2: 0.22, c: G.INK, w: 0.055 }], 2],
       ['Annulled / divorced', 'Two slashes across the line.', [{ t: 'line', x1: 0.15, y1: 0.5, x2: 1.85, y2: 0.5, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.8, y1: 0.78, x2: 1.0, y2: 0.22, c: G.INK, w: 0.055 }, { t: 'line', x1: 1.0, y1: 0.78, x2: 1.2, y2: 0.22, c: G.INK, w: 0.055 }], 2],
       ['Children', 'Hang from the line between their parents, oldest on the left.', [{ t: 'line', x1: 1, y1: 0.1, x2: 1, y2: 0.45, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.4, y1: 0.45, x2: 1.6, y2: 0.45, c: G.INK, w: 0.055 }, { t: 'line', x1: 0.4, y1: 0.45, x2: 0.4, y2: 0.9, c: G.INK, w: 0.055 }, { t: 'line', x1: 1.6, y1: 0.45, x2: 1.6, y2: 0.9, c: G.INK, w: 0.055 }], 2],
+      ['Adopted child', 'A dashed line down to the child.', [{ t: 'line', x1: 0.6, y1: 0.1, x2: 0.6, y2: 1.1, c: G.INK, w: 0.055, dash: true }]],
+      ['Foster child', 'A dotted line down to the child.', [{ t: 'line', x1: 0.6, y1: 0.1, x2: 0.6, y2: 1.1, c: G.INK, w: 0.055, dash: 'dot' }]],
+      ['Pregnancy', 'A triangle. Type the weeks in Age, for example 20 weeks.', [{ t: 'poly', pts: [[0.6, 0.2], [1.05, 1.0], [0.15, 1.0]], c: G.INK, w: 0.055, fill: 'FFFFFF', close: true }]],
+      ['Miscarriage', 'A small filled circle.', [{ t: 'shape', g: 'ellipse', x: 0.42, y: 0.42, w: 0.36, h: 0.36, fill: G.INK, c: G.INK, sw: 0.03 }]],
+      ['Abortion', 'A small cross.', [{ t: 'line', x1: 0.4, y1: 0.4, x2: 0.8, y2: 0.8, c: G.INK, w: 0.07 }, { t: 'line', x1: 0.8, y1: 0.4, x2: 0.4, y2: 0.8, c: G.INK, w: 0.07 }]],
+      ['Stillbirth', 'A small symbol with an X through it.', [{ t: 'shape', g: 'rect', x: 0.35, y: 0.35, w: 0.5, h: 0.5, fill: 'FFFFFF', c: G.INK, sw: 0.045 }, { t: 'line', x1: 0.28, y1: 0.28, x2: 0.92, y2: 0.92, c: G.INK, w: 0.04 }, { t: 'line', x1: 0.92, y1: 0.28, x2: 0.28, y2: 0.92, c: G.INK, w: 0.04 }]],
       ['Twins', 'Two lines that start from the same point.', [{ t: 'line', x1: 1, y1: 0.15, x2: 0.45, y2: 0.9, c: G.INK, w: 0.055 }, { t: 'line', x1: 1, y1: 0.15, x2: 1.55, y2: 0.9, c: G.INK, w: 0.055 }], 2]] },
     { h: 'Relationship lines', c: '#0E8A8A', rows: [
       ['Close', 'Two green lines.'], ['Very close / enmeshed', 'Three green lines.'], ['Distant', 'A dotted line.'], ['Conflictual', 'A red zigzag.'],
@@ -878,19 +1129,22 @@
 
   /* ---------- How to use ---------- */
   var GUIDE = [
-    ['Start with the index person', 'Open a new genogram and fill in the index person: the name to show (initials or an alias are fine), age and sex. The shading for a psychiatric or substance use disorder is on to begin with; tap it to turn it off.'],
-    ['Add the family with one tap', 'Tap + Father, + Mother, + Sister and so on. Each person appears as a row; tap a row to open it and add the age, occupation and conditions. “Someone else…” has every other relationship: step-parents, half-siblings, former partners, nephews and nieces, grandchildren, grandparents, aunts and uncles.'],
+    ['Start with the index person', 'Open a new genogram and fill in the index person: the name to show (initials or an alias are fine), age and sex. The shading for a psychiatric disorder is on to begin with; tap it to turn it off. “Substance use disorder” darkens the lower half of the symbol.'],
+    ['Add the family with one tap', 'Tap + Father, + Mother, + Sister and so on. Each person appears as a row; tap a row to open it and add the age, occupation and conditions. “Someone else…” has every other relationship: step-parents, half-siblings, former partners, nephews and nieces, grandchildren, grandparents, aunts and uncles, and cousins.'],
     ['Oldest to youngest', 'Brothers, sisters and children are placed by age, oldest on the left, whatever order you typed them in. Ages such as “8 mo” or “1 y 6 mo” are understood. For people of the same age, use Move up and Move down; for twins, turn on Twin for each of them.'],
     ['Children with different partners', 'Add each partner first (Husband, Wife, Partner, Former partner). Then open the child and choose the other parent. Leave it on the first choice and the child goes with the current spouse or partner.'],
     ['Step-parents and half-siblings', 'A stepfather is drawn beside the mother, a stepmother beside the father. A paternal half-sibling hangs between the father and the stepmother; if no stepmother was added, a dashed “?” parent is drawn.'],
+    ['Cousins', 'Add the aunt or uncle first, then add the cousin and choose whose child they are. Paternal cousins are drawn on the left, maternal cousins on the right.'],
+    ['Adopted and foster children, pregnancies and losses', 'Open a brother, sister, child, nephew, niece, grandchild or cousin. “Joined the family” draws a dashed line for an adopted child and a dotted line for a foster child. “Pregnancy or loss” draws a triangle for a current pregnancy, a small filled circle for a miscarriage, a small cross for an abortion and a small crossed symbol for a stillbirth.'],
     ['Many people in one symbol', 'Type a number in “Number of people” to let one symbol stand for several people, such as 5 former partners or 7 children. Each person has room for two partners on the chart, so this is the way to show more.'],
     ['Relationship lines', 'In step 2, pick two people and how they relate. Lines between generations start under the older person’s label so they do not run through the words.'],
-    ['Save and share', 'In step 3, Save picture makes a PNG and Save PDF makes a one-page A4 PDF. On an installed iPhone or iPad app the share sheet opens so you can save to Files or send it.'],
-    ['Privacy', 'Everything stays on this device. Nothing is sent to a server. Use initials or an alias, and use Export backup in the footer to move your genograms to another device.']
+    ['Tap, zoom and undo', 'On the chart, tap a person to open their card. Pinch, or use + and −, to zoom in, then drag to move around; Fit shows the whole chart again. While editing, Undo takes back the last change, one step at a time. A deleted genogram can be brought back from the message that appears.'],
+    ['Save and share', 'In step 3, Save picture makes a PNG and Save PDF makes a one-page A4 PDF. Share file saves that one genogram as a file: a colleague opens it with “Open a genogram file” on the home page, and PsychInterview can open it in its Family section. On an installed iPhone or iPad app the share sheet opens so you can save to Files or send it.'],
+    ['Privacy', 'Everything stays on this device. Nothing is sent to a server. Use initials or an alias, or turn on “Initials only” above the chart to shorten every name on it. A passcode lock is under About. Use Export backup in the footer to move your genograms to another device.']
   ];
   TITLES.guide = 'How to use';
   VIEWS.guide = function () {
-    return '<div class="wrap page"><header class="page__head"><h1>How to use</h1><p>Nine short notes. The <a href="#/symbols">symbols page</a> shows what everything on the chart means.</p></header>' +
+    return '<div class="wrap page"><header class="page__head"><h1>How to use</h1><p>Short notes on each part of the app. The <a href="#/symbols">symbols page</a> shows what everything on the chart means.</p></header>' +
       GUIDE.map(function (g, i) { return '<div class="row row--static"><span class="row__num">' + (i + 1) + '</span><span><h3>' + esc(g[0]) + '</h3><p>' + esc(g[1]) + '</p></span><span></span></div>'; }).join('') + '</div>';
   };
 
@@ -944,6 +1198,7 @@
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { syncHist(); route({ focus: true }); });
+  if (LOCK) { if (lockOK) lockShow(); else document.documentElement.classList.remove('locked'); } else document.documentElement.classList.remove('locked');
   main.addEventListener('change', function (e) {   // About > Settings
     var n = e.target && e.target.name, v = e.target && e.target.value;
     if (n === 'lang') { setLang(v); var again = main.querySelector('input[name="lang"]:checked'); if (again) again.focus(); }
@@ -984,16 +1239,16 @@
     try {
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
-        if (k && k.indexOf(PREFIX) === 0) data[k.slice(PREFIX.length)] = localStorage.getItem(k);
+        if (k && k.indexOf(PREFIX) === 0 && k !== PREFIX + 'lock') data[k.slice(PREFIX.length)] = localStorage.getItem(k);   // the passcode lock stays on this device
       }
     } catch (e) {}
     return data;
   }
   function bkReplace(data) {
     var keys = [];
-    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0) keys.push(k); }
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0 && k !== PREFIX + 'lock') keys.push(k); }
     keys.forEach(function (k) { localStorage.removeItem(k); });
-    Object.keys(data).forEach(function (k) { localStorage.setItem(PREFIX + k, data[k]); });
+    Object.keys(data).forEach(function (k) { if (k !== 'lock') localStorage.setItem(PREFIX + k, data[k]); });
   }
   function bkSummary(data) {
     var n = Object.keys(data || {}).filter(function (k) { return k !== 'lastBackup'; }).length;

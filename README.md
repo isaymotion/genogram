@@ -10,9 +10,14 @@ Draw a clear family genogram in minutes: add the family, mark how people relate,
 - **Step 1, Family:** fill in the index person, then add relatives with one tap (+ Father, + Mother, + Sister…). Each person is a row that opens for age, occupation, conditions, living or deceased, lives with the index person, twin, and "Number of people" (one symbol for several people). "Someone else" covers step-parents, half-siblings, former partners, siblings' partners and children, children's partners, grandchildren, grandparents, aunts and uncles.
 - **Step 2, Relationships:** lines between any two people: close, very close / enmeshed, distant, conflictual, close but conflictual, cut off / estranged, abusive toward.
 - **Step 3, Genogram:** drawn automatically with standard symbols, siblings and children oldest to youngest, and a key that lists only what the chart uses. Save as a picture (PNG) or a one-page A4 PDF; both are made on the device.
+- **More of the family:** cousins (under the aunt or uncle who is their parent), adopted and foster children (dashed or dotted line), current pregnancy, miscarriage, abortion and stillbirth, and a separate mark for a substance use disorder (dark lower half) beside the shading for a psychiatric disorder.
+- **On the chart:** tap a person to open their card; pinch or use + and − to zoom, drag to move. "Initials only" shortens every name on the chart and in the saved picture and PDF.
+- **Undo** while editing (one step at a time, this visit only), and "Undo" after deleting a genogram.
+- **Share file:** one genogram as a `.genogram.json` file. "Open a genogram file" on the home page adds it as a new genogram; PsychInterview opens the same file in its Family section.
+- **Passcode lock** (About > Privacy): asks for 4 to 12 digits when the app opens and after two minutes in the background. It is a screen lock, not encryption; only a salted hash of the passcode is stored, and it is left out of backups.
 - **Symbols and lines** and **How to use** pages.
 - The shared isaymotion shell: menu (sidebar on desktop, drawer and bottom tabs on phones), search (`/`), back and forward, light / dark / match-device theme, text size, English / Tagalog shell, What's new, and backup (export, import, undo).
-- No accounts and no server. Everything stays in the browser on each device. No build step and no dependencies.
+- No accounts and no server. Everything stays in the browser on each device. Fonts are bundled in `fonts/`, so the app makes no request to any other site. No build step and no dependencies.
 
 ## Files to upload
 
@@ -30,6 +35,8 @@ data/app-meta.js        App name, version, attribution (window.APP_META), menu l
 data/changelog.js       What's new entries (window.APP_CHANGELOG)
 data/hospital.js        Hospital, program, posts and year levels (window.HOSPITAL), shared across apps
 data/strings.js         Shell UI strings in English and Tagalog (window.STRINGS)
+fonts/                  Figtree, Fraunces and Source Serif 4 (latin, variable woff2) and their licence, OFL.txt
+tools/sync_engine.py    Copies the shared drawing code into PsychInterview and checks the two are in step (not part of the app)
 icons/                  icon-192.png, icon-512.png, icon-maskable-512.png (required),
                         favicon-32.png, favicon-64.png, apple-touch-icon.png (recommended)
 manifest.webmanifest    Install metadata
@@ -38,9 +45,20 @@ sw.js                   Offline cache
 
 Icons are generated from `icons/icon.svg`.
 
-## The drawing engine
+## The drawing engine (shared with PsychInterview)
 
-`js/genogram-engine.js` is the same code PsychInterview uses for its genogram (repo `case-psychinterview`, `index.html`, the block that starts "Family members and genogram"). When the drawing is changed in one app, copy that block into the other between the `BEGIN shared block` / `END shared block` marks so both apps draw the same chart.
+`js/genogram-engine.js` holds the code that lays out and draws a genogram, between the `BEGIN shared block` and `END shared block` marks. PsychInterview (repo `case-psychinterview`, `index.html`) carries the same block between the same marks, so both apps draw the same chart, and its slides and Word export use the same drawing pieces.
+
+The two are developed together. **Edit the block here, never in PsychInterview**, then:
+
+```
+python3 tools/sync_engine.py ../case-psychinterview          # copy the block into PsychInterview
+python3 tools/sync_engine.py ../case-psychinterview --check   # only compare; fails if they differ
+```
+
+For every change to the block: update this app's form if a new field is involved, do the same in PsychInterview's family form (`familyHTML` in its `index.html`), bump both versions (`sw.js` cache names included), and publish both repos together. New drawing pieces must stay within the four kinds the slide export understands: `line`, `poly`, `shape` (rect, ellipse, diamond) and `text`.
+
+Fields the engine reads on a family member: `name, rel, age, sex, status, occ, cond, count, of, relStatus, psych, subst, withPt, twin, bond` (Adopted / Foster) and `preg` (Pregnancy / Miscarriage / Abortion / Stillbirth). For the index person: `genoPtName, genoPtOcc, genoPtCond, genoPtFill, genoPtSubst, genoPtBond, genoPtDead`.
 
 ## Publish on GitHub Pages
 
