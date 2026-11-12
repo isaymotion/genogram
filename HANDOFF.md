@@ -84,6 +84,7 @@ Both repos must be attached with push access (`add_repo`, access push).
 - Ideas not built: drag to rearrange people, in-laws beyond a sibling's partner, Tagalog on the chart itself, Tagalog search, linking this app from the other apps' menus.
 
 ## 8. Pitfalls learned
+- 2026-11-13: the PsychInterview chat ran every test here on 1.4.0 / v37 from a fresh clone: all pass, both apps in step. PsychInterview's own `t_family.py` had to be updated for the 1.3.0 couple picker: when a shared change alters a PsychInterview form control, also run `bash tools/tests/run_all.sh` from its `dev-tools` branch (a blank line under a heading there means a test crashed).
 - `git pull` before work AND before pushing; PsychInterview's version moved from v29 to v36 in one day through other chats.
 - Uncommitted work can be left in a checkout by a cut-off turn. Run `git status` first; test any such change before trusting it.
 - Tapping a symbol: do not rely on SVG hit targets (overlays cover them). `pzUp` in `app.js` finds the person from the layout coordinates.
