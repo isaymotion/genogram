@@ -1,0 +1,10 @@
+// Chart for 1.5.0 checks: deceased ages, household outline, the newer relationship lines, curved lines in a crowded row. Writes pp/stress.genogram.json for t_pptx.py.
+const QA=process.env.GENO_QA||'/tmp/geno-qa'; require('fs').mkdirSync(QA+'/pp',{recursive:true});
+const fam=[{ id: 'pgf', name: 'Isko', rel: 'Paternal grandfather', age: '66', status: 'Deceased', subst: true },{ id: 'pgm', name: 'Sela', rel: 'Paternal grandmother', age: '82', status:'Deceased', psych:true },
+ { id: 'pun', name: 'Dado', rel: 'Paternal uncle', age: '60', psych: true },{ id: 'fa', name: 'Ruben', rel: 'Father', age: '58', status: 'Deceased' },{ id: 'mo', name: 'Elena', rel: 'Mother', age: '55', withPt:true },
+ { id: 'b1', name: 'Jomar', rel: 'Brother', age: '33', subst: true },{ id: 's1', name: 'Liezl', rel: 'Sister', age: '25', withPt:true },{ id: 'p1', name: 'Kaye', rel: 'Partner', sex: 'Female', age: '26', relStatus: 'Cohabitation', withPt: true },
+ { id: 'x1', name: 'Jen', rel: 'Former partner', sex: 'Female', age: '28', relStatus: 'Committed relationship and separation' },{ id: 'x2', name: 'Mae', rel: 'Former partner', sex: 'Female', age: '24', relStatus: 'Casual relationship and separation' },
+ { id: 'k1', name: 'Jace', rel: 'Son', age: '7', of: 'x1' },{ id: 'k2', name: 'Lia', rel: 'Daughter', age: '3', of: 'x2' },{ id: 'k3', name: 'Ali', rel: 'Son', age: '1', withPt:true }];
+const links=[{ a: 'fa', type: 'Physical abuse toward', b: 'pt' },{ a: 'pt', type: 'Hostile', b: 'x2' },{ a: 'pt', type: 'Cut off / estranged', b: 'b1' },{ a: 'pt', type: 'Close', b: 's1' },{a:'pun',type:'Sexual abuse toward',b:'b1'},{a:'mo',type:'Caregiver of',b:'k3'},{a:'mo',type:'Neglect toward',b:'b1'},{a:'x1',type:'Emotional abuse toward',b:'pt'}];
+const chart={title:'Checks 1.5.0',ptName:'Marco',ptAge:'29',ptSex:'Male',ptFill:false,ptSubst:true,parentsRel:'Married',byAge:true,household:true,family:fam,links};
+for(const f of ['stress','c150']) require('fs').writeFileSync(QA+'/pp/'+f+'.genogram.json',JSON.stringify({app:'genogram',kind:'chart',format:1,chart}));
