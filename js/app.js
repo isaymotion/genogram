@@ -65,6 +65,16 @@
   function tf(key, vars) { return t(key).replace(/\{(\w+)\}/g, function (m, k) { return vars && has(vars, k) ? String(vars[k]) : m; }); }
   function rich(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\[\[(.+?)\]\]/g, '<kbd>$1</kbd>'); }   // **bold** and [[key]] in strings
   function locale() { return lang === 'tl' ? 'fil' : undefined; }
+  /* The app's own content (editor, Symbols, How to use) is written in English here; data/content-tl.js maps each
+     English string to its Tagalog. tx(s): the text in the current language. txf(s, map): fills {name} placeholders
+     after translating, so word order can differ (the caller escapes the result as before). txh(s, html): for text
+     that holds markup; the translated sentence is escaped first, then the ready-made (already escaped) HTML pieces
+     are put in its {name} placeholders. Stored values (relationship names, couple status, line types) stay English. */
+  var CONTENT_TL = window.CONTENT_TL || {};
+  function tx(s) { if (lang !== 'tl' || typeof s !== 'string' || !has(CONTENT_TL, s)) return s; var v = CONTENT_TL[s]; return typeof v === 'string' && v ? v : s; }
+  function fillIn(s, map) { return s.replace(/\{(\w+)\}/g, function (m, k) { return map && has(map, k) ? String(map[k]) : m; }); }
+  function txf(s, map) { return fillIn(tx(s), map); }
+  function txh(s, html) { return fillIn(esc(tx(s)), html); }
 
   /* ===== Helpers ===== */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -113,7 +123,7 @@
     { label: 'About', tkey: 'nav.about', href: '#/about', icon: 'info', group: 'App', tile: false }
   ];
   var NAV_GROUPS = { Start: 'nav.start', Screens: 'nav.screens', App: 'nav.app' };   // group name -> strings key
-  function navLabel(n) { return n.tkey ? t(n.tkey) : n.label; }
+  function navLabel(n) { return n.tkey ? t(n.tkey) : tx(n.label); }
 
   /* ===== Search index: fill with {title, text, href, kind}. Rebuild it from your own data if you like.
      The shell's own entries (What's new, About) are added by shellIndex() so they follow the language. ===== */
@@ -500,40 +510,40 @@
     return lockHash(pass, salt, 150000).then(function (h) { LOCK = { salt: salt, hash: h, iter: 150000 }; store.set('lock', LOCK); });
   }
   function lockCard() {
-    var note = '<p class="hint">The lock keeps the app closed to someone who picks up this phone or computer. It does not encrypt what is saved, and a forgotten passcode cannot be recovered: export a backup first.</p>';
-    if (!lockOK) return '<p>The passcode lock needs a newer browser and a secure (https) page.</p>';
-    if (LOCK) return '<p><strong>Passcode lock is on.</strong> The app asks for the passcode when it opens, and after two minutes in the background.</p>' +
-      '<div class="flds">' + field('Current passcode', '<input type="password" id="lk-cur" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
-      '<p class="lockcard__acts"><button type="button" class="btn" data-lock="now">Lock now</button><button type="button" class="btn" data-lock="off">Turn off the lock</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
-    return '<p><strong>Passcode lock is off.</strong> Choose 4 to 12 digits.</p>' +
-      '<div class="flds">' + field('New passcode', '<input type="password" id="lk-new" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + field('Type it again', '<input type="password" id="lk-new2" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
-      '<p class="lockcard__acts"><button type="button" class="btn btn--solid" data-lock="on">Turn on the lock</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
+    var note = '<p class="hint">' + esc(tx('The lock keeps the app closed to someone who picks up this phone or computer. It does not encrypt what is saved, and a forgotten passcode cannot be recovered: export a backup first.')) + '</p>';
+    if (!lockOK) return '<p>' + esc(tx('The passcode lock needs a newer browser and a secure (https) page.')) + '</p>';
+    if (LOCK) return '<p><strong>' + esc(tx('Passcode lock is on.')) + '</strong> ' + esc(tx('The app asks for the passcode when it opens, and after two minutes in the background.')) + '</p>' +
+      '<div class="flds">' + field(tx('Current passcode'), '<input type="password" id="lk-cur" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
+      '<p class="lockcard__acts"><button type="button" class="btn" data-lock="now">' + esc(tx('Lock now')) + '</button><button type="button" class="btn" data-lock="off">' + esc(tx('Turn off the lock')) + '</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
+    return '<p><strong>' + esc(tx('Passcode lock is off.')) + '</strong> ' + esc(tx('Choose 4 to 12 digits.')) + '</p>' +
+      '<div class="flds">' + field(tx('New passcode'), '<input type="password" id="lk-new" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + field(tx('Type it again'), '<input type="password" id="lk-new2" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
+      '<p class="lockcard__acts"><button type="button" class="btn btn--solid" data-lock="on">' + esc(tx('Turn on the lock')) + '</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
   }
   function lockShow() {
     if (!LOCK || document.getElementById('lockscreen')) return;
     if (saveTimer) saveNow();
     document.documentElement.classList.add('locked');
     var el = document.createElement('div'); el.id = 'lockscreen'; el.className = 'lockscreen'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'lock-h');
-    el.innerHTML = '<form class="lockscreen__box" autocomplete="off"><img src="icons/icon-192.png" alt="" width="64" height="64"><h1 id="lock-h">' + esc(APP_NAME) + ' is locked</h1>' +
-      '<label class="fld"><span>Passcode</span><input type="password" id="lock-in" inputmode="numeric" autocomplete="off" maxlength="12"></label>' +
-      '<button type="submit" class="btn btn--solid">Unlock</button><p class="status" id="lock-status" role="status" aria-live="polite"></p>' +
-      '<details class="lockscreen__forgot"><summary>Forgot the passcode?</summary><p>The passcode cannot be recovered. You can erase the genograms saved in this app on this device and start again. If you exported a backup, you can import it afterwards.</p>' +
-      '<button type="button" class="btn" id="lock-erase">Erase the genograms and remove the lock</button></details></form>';
+    el.innerHTML = '<form class="lockscreen__box" autocomplete="off"><img src="icons/icon-192.png" alt="" width="64" height="64"><h1 id="lock-h">' + esc(txf('{app} is locked', { app: APP_NAME })) + '</h1>' +
+      '<label class="fld"><span>' + esc(tx('Passcode')) + '</span><input type="password" id="lock-in" inputmode="numeric" autocomplete="off" maxlength="12"></label>' +
+      '<button type="submit" class="btn btn--solid">' + esc(tx('Unlock')) + '</button><p class="status" id="lock-status" role="status" aria-live="polite"></p>' +
+      '<details class="lockscreen__forgot"><summary>' + esc(tx('Forgot the passcode?')) + '</summary><p>' + esc(tx('The passcode cannot be recovered. You can erase the genograms saved in this app on this device and start again. If you exported a backup, you can import it afterwards.')) + '</p>' +
+      '<button type="button" class="btn" id="lock-erase">' + esc(tx('Erase the genograms and remove the lock')) + '</button></details></form>';
     document.body.appendChild(el);
     var input = el.querySelector('#lock-in'), status = el.querySelector('#lock-status');
     setTimeout(function () { input.focus(); }, 30);
     el.querySelector('form').addEventListener('submit', function (e) {
       e.preventDefault();
       var wait = Math.ceil((lockUntil - Date.now()) / 1000);
-      if (wait > 0) { status.textContent = 'Too many tries. Wait ' + wait + ' seconds.'; return; }
+      if (wait > 0) { status.textContent = txf('Too many tries. Wait {n} seconds.', { n: wait }); return; }
       lockCheck(input.value).then(function (ok) {
         if (ok) { lockFails = 0; el.remove(); document.documentElement.classList.remove('locked'); route({ keepScroll: true }); return; }
         lockFails++; input.value = ''; input.focus();
-        if (lockFails >= 5) { lockUntil = Date.now() + 30000; lockFails = 0; status.textContent = 'Too many tries. Wait 30 seconds.'; } else status.textContent = 'That passcode is not right.';
-      }, function () { status.textContent = 'The passcode could not be checked on this browser.'; });
+        if (lockFails >= 5) { lockUntil = Date.now() + 30000; lockFails = 0; status.textContent = txf('Too many tries. Wait {n} seconds.', { n: 30 }); } else status.textContent = tx('That passcode is not right.');
+      }, function () { status.textContent = tx('The passcode could not be checked on this browser.'); });
     });
     el.querySelector('#lock-erase').addEventListener('click', function () {
-      if (!window.confirm('Erase every genogram saved in this app on this device, and remove the lock? This cannot be undone.')) return;
+      if (!window.confirm(tx('Erase every genogram saved in this app on this device, and remove the lock? This cannot be undone.'))) return;
       try { var keys = [], i; for (i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0) keys.push(k); } keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e2) {}
       location.reload();
     });
@@ -548,16 +558,16 @@
     if (act === 'now') { lockShow(); return; }
     if (act === 'on') {
       var a = (document.getElementById('lk-new') || {}).value || '', a2 = (document.getElementById('lk-new2') || {}).value || '';
-      if (!/^\d{4,12}$/.test(a)) { tell('Use 4 to 12 digits.'); return; }
-      if (a !== a2) { tell('The two passcodes are not the same.'); return; }
-      lockSet(a).then(function () { route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = 'The lock is on.'; }, function () { tell('The lock could not be turned on in this browser.'); });
+      if (!/^\d{4,12}$/.test(a)) { tell(tx('Use 4 to 12 digits.')); return; }
+      if (a !== a2) { tell(tx('The two passcodes are not the same.')); return; }
+      lockSet(a).then(function () { route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = tx('The lock is on.'); }, function () { tell(tx('The lock could not be turned on in this browser.')); });
       return;
     }
     if (act === 'off') {
       lockCheck((document.getElementById('lk-cur') || {}).value || '').then(function (ok) {
-        if (!ok) { tell('That passcode is not right.'); return; }
-        LOCK = null; store.del('lock'); route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = 'The lock is off.';
-      }, function () { tell('The passcode could not be checked on this browser.'); });
+        if (!ok) { tell(tx('That passcode is not right.')); return; }
+        LOCK = null; store.del('lock'); route({ keepScroll: true }); var s2 = document.getElementById('lk-status'); if (s2) s2.textContent = tx('The lock is off.');
+      }, function () { tell(tx('The passcode could not be checked on this browser.')); });
     }
   });
 
@@ -570,7 +580,7 @@
         segGroup('theme', t('theme.title'), [['auto', t('theme.auto')], ['light', t('theme.light')], ['dark', t('theme.dark')]], getTheme()) +
         segGroup('aboutTextSize', t('textsize.title'), sizes, String(store.get('textSize', '100'))) +
       '</div>' +
-      '<h2>Privacy</h2><div class="card lockcard">' + lockCard() + '</div>' +
+      '<h2>' + esc(tx('Privacy')) + '</h2><div class="card lockcard">' + lockCard() + '</div>' +
       '<h2>' + esc(t('about.tips')) + '</h2><div class="card"><ul class="prose" style="margin:0;padding-left:1.2em">' +
         [1, 2, 3, 4, 5].map(function (i) { return '<li>' + rich(t('about.tip' + i)) + '</li>'; }).join('') +
       '</ul></div></div>';
@@ -664,8 +674,8 @@
   function peopleCount(c) { return 1 + c.family.reduce(function (a, m) { return a + (m && (m.name || m.rel) ? (G.famCount(m) || 1) : 0); }, 0); }
 
   /* ---------- groups: where each relationship sits, and its colour ---------- */
-  var GROUPS = [
-    { key: 'gp', label: 'Grandparents', c: '#C77700', roles: ['pgf', 'pgm', 'mgf', 'mgm'] },
+  var GROUPS = [   // label is translated when drawn (stepFamily)
+    { key: 'gp', label: 'Grandparents and great-grandparents', c: '#C77700', roles: ['ggp', 'pgf', 'pgm', 'mgf', 'mgm'] },
     { key: 'par', label: 'Parents, aunts and uncles', c: '#D4502A', roles: ['father', 'mother', 'stepfa', 'stepmo', 'pside', 'mside'] },
     { key: 'sib', label: 'Brothers and sisters', c: '#0E8A8A', roles: ['sib', 'phalf', 'mhalf'] },
     { key: 'cous', label: 'Cousins', c: '#8A5A2B', roles: ['cousin'] },
@@ -698,35 +708,36 @@
     if (pg === 'Abortion') return miniSVG([{ t: 'line', x1: 0.38, y1: 0.38, x2: 0.82, y2: 0.82, c: G.INK, w: 0.07 }, { t: 'line', x1: 0.82, y1: 0.38, x2: 0.38, y2: 0.82, c: G.INK, w: 0.07 }], 1.2, 1.2, 36);
     return miniSVG(symPrims({ sex: G.memberSex(m), fill: !!m.psych, subst: !!m.subst, dead: m.status === 'Deceased' || pg === 'Stillbirth', text: pg ? '' : n ? '×' + n : age }), 1.2, 1.2, 36);
   }
-  function who(m) { return m.name ? m.name + (m.rel ? ' (' + m.rel + ')' : '') : (G.famCount(m) ? G.famCount(m) + ' × ' : '') + (m.rel || 'No name yet'); }
+  function who(m) { return m.name ? m.name + (m.rel ? ' (' + tx(m.rel) + ')' : '') : (G.famCount(m) ? G.famCount(m) + ' × ' : '') + (m.rel ? tx(m.rel) : tx('No name yet')); }
+  function peopleText(n, onChart) { return onChart ? txf(n === 1 ? '{n} person on the chart' : '{n} people on the chart', { n: n }) : txf(n === 1 ? '{n} person' : '{n} people', { n: n }); }
 
   /* ---------- Home ---------- */
   TITLES.home = '';
   VIEWS.home = function () {
     var list = charts(), latest = CHANGELOG[0];
-    var steps = [['1', 'Add the family', 'Start with the index person, then tap to add parents, siblings, partners and children.', '#D4502A'],
+    var steps = [['1', 'Add the family', 'Start with the index person, then tap to add parents, siblings, partners and children.', '#D4502A'],   // translated when drawn below
       ['2', 'Mark how they relate', 'Close, distant, in conflict, cut off: pick two people and the kind of line.', '#0E8A8A'],
       ['3', 'Save the genogram', 'The chart draws itself, oldest to youngest. Save it as a picture or a PDF.', '#C2337A']];
     return '<section class="hero"><div class="wrap hero__inner">' +
-        '<p class="hero__kicker">Genogram maker</p><h1>Draw the family, <em>see the pattern.</em></h1>' +
-        '<p class="hero__lead">Add the family, mark how people relate, and the genogram draws itself with standard symbols and a key that matches what is on the chart.</p>' +
-        '<p class="hero__actions"><button type="button" class="btn btn--solid" data-act="new">New genogram</button> <button type="button" class="btn" data-act="sample">Open a sample family</button> <label class="btn" for="open-file">Open a genogram file</label><input type="file" id="open-file" class="sr-only" accept=".json,application/json"></p>' +
+        '<p class="hero__kicker">' + esc(tx('Genogram maker')) + '</p><h1>' + txh('Draw the family, {em}', { em: '<em>' + esc(tx('see the pattern.')) + '</em>' }) + '</h1>' +
+        '<p class="hero__lead">' + esc(tx('Add the family, mark how people relate, and the genogram draws itself with standard symbols and a key that matches what is on the chart.')) + '</p>' +
+        '<p class="hero__actions"><button type="button" class="btn btn--solid" data-act="new">' + esc(tx('New genogram')) + '</button> <button type="button" class="btn" data-act="sample">' + esc(tx('Open a sample family')) + '</button> <label class="btn" for="open-file">' + esc(tx('Open a genogram file')) + '</label><input type="file" id="open-file" class="sr-only" accept=".json,application/json"></p>' +
       '</div></section>' +
       '<div class="wrap home">' +
-        '<h2 class="home__h">Your genograms</h2><p class="status" id="ed-status" role="status" aria-live="polite"></p>' +
+        '<h2 class="home__h">' + esc(tx('Your genograms')) + '</h2><p class="status" id="ed-status" role="status" aria-live="polite"></p>' +
         (list.length
           ? '<div class="charts">' + list.map(function (c) {
               var L = null; try { L = layoutOf(c, false); } catch (e) { L = null; }
-              return '<article class="card chartcard"><a class="chartcard__open" href="#/chart/' + esc(c.id) + (c.family.length ? '/view' : '') + '" aria-label="Open ' + esc(c.title) + '">' +
-                '<div class="chartcard__thumb">' + (L ? G.svg(L, 26) : '<span class="muted">No family members yet</span>') + '</div>' +
-                '<h3>' + esc(c.title || 'Family genogram') + '</h3><p class="muted">' + peopleCount(c) + (peopleCount(c) === 1 ? ' person' : ' people') + ' · ' + esc(fmtDate(String(c.updated).slice(0, 10))) + '</p></a>' +
-                '<p class="chartcard__acts"><a class="link-btn" href="#/chart/' + esc(c.id) + '">Edit</a><button type="button" class="link-btn" data-act="dup" data-id="' + esc(c.id) + '">Duplicate</button><button type="button" class="link-btn danger" data-act="del" data-id="' + esc(c.id) + '">Delete</button></p></article>';
+              return '<article class="card chartcard"><a class="chartcard__open" href="#/chart/' + esc(c.id) + (c.family.length ? '/view' : '') + '" aria-label="' + esc(txf('Open {title}', { title: c.title })) + '">' +
+                '<div class="chartcard__thumb">' + (L ? G.svg(L, 26) : '<span class="muted">' + esc(tx('No family members yet')) + '</span>') + '</div>' +
+                '<h3>' + esc(c.title || tx('Family genogram')) + '</h3><p class="muted">' + esc(peopleText(peopleCount(c))) + ' · ' + esc(fmtDate(String(c.updated).slice(0, 10))) + '</p></a>' +
+                '<p class="chartcard__acts"><a class="link-btn" href="#/chart/' + esc(c.id) + '">' + esc(tx('Edit')) + '</a><button type="button" class="link-btn" data-act="dup" data-id="' + esc(c.id) + '">' + esc(tx('Duplicate')) + '</button><button type="button" class="link-btn danger" data-act="del" data-id="' + esc(c.id) + '">' + esc(tx('Delete')) + '</button></p></article>';
             }).join('') + '</div>'
-          : '<div class="empty"><h2>No genograms yet</h2><p>Start a new one, or open the sample family to see how it works.</p><p><button type="button" class="btn btn--solid" data-act="new">New genogram</button></p></div>') +
-        '<h2 class="home__h home__h--gap">How it works</h2><div class="steps">' + steps.map(function (s) {
-          return '<div class="stepcard" style="--c:' + s[3] + '"><span class="stepcard__n">' + s[0] + '</span><h3>' + s[1] + '</h3><p>' + s[2] + '</p></div>'; }).join('') + '</div>' +
-        '<div class="cards cards--two"><a class="card tile" href="#/symbols">' + icon('shapes', 'tile__ico') + '<h3>Symbols and lines</h3><p class="muted">What every shape and line means.</p></a>' +
-          '<a class="card tile" href="#/guide">' + icon('book', 'tile__ico') + '<h3>How to use</h3><p class="muted">Step-parents, half-siblings, twins, grouped symbols.</p></a></div>' +
+          : '<div class="empty"><h2>' + esc(tx('No genograms yet')) + '</h2><p>' + esc(tx('Start a new one, or open the sample family to see how it works.')) + '</p><p><button type="button" class="btn btn--solid" data-act="new">' + esc(tx('New genogram')) + '</button></p></div>') +
+        '<h2 class="home__h home__h--gap">' + esc(tx('How it works')) + '</h2><div class="steps">' + steps.map(function (s) {
+          return '<div class="stepcard" style="--c:' + s[3] + '"><span class="stepcard__n">' + s[0] + '</span><h3>' + esc(tx(s[1])) + '</h3><p>' + esc(tx(s[2])) + '</p></div>'; }).join('') + '</div>' +
+        '<div class="cards cards--two"><a class="card tile" href="#/symbols">' + icon('shapes', 'tile__ico') + '<h3>' + esc(tx('Symbols and lines')) + '</h3><p class="muted">' + esc(tx('What every shape and line means.')) + '</p></a>' +
+          '<a class="card tile" href="#/guide">' + icon('book', 'tile__ico') + '<h3>' + esc(tx('How to use')) + '</h3><p class="muted">' + esc(tx('Step-parents, half-siblings, twins, grouped symbols.')) + '</p></a></div>' +
         '<a class="card news-strip" href="#/whats-new"><span class="badge" data-badge="news" hidden></span><strong>' + esc(t('nav.whatsNew')) + '</strong>' +
           (latest ? '<span class="muted">' + esc(tf('home.latest', { title: latest.title, version: latest.version })) + '</span>' : '') + '</a>' +
       '</div>';
@@ -743,110 +754,112 @@
   function chip(scope, key, on, label) { return '<button type="button" class="filter" ' + scope + ' data-tog="' + key + '" aria-pressed="' + (on ? 'true' : 'false') + '">' + esc(label) + '</button>'; }
   function segBtns(scope, key, opts, cur) { return '<div class="segb" role="group">' + opts.map(function (o) { return '<button type="button" ' + scope + ' data-set="' + key + '" data-v="' + esc(o[0]) + '" aria-pressed="' + (String(cur || '') === String(o[0]) ? 'true' : 'false') + '">' + esc(o[1]) + '</button>'; }).join('') + '</div>'; }
   function relOptions(cur) {
-    var groups = [], out = opt('', 'Choose…', cur);
+    var groups = [], out = opt('', tx('Choose…'), cur);
     G.FAMILY_RELS.forEach(function (r) { if (groups.indexOf(r.g) < 0) groups.push(r.g); });
-    groups.forEach(function (g) { out += '<optgroup label="' + esc(g) + '">' + G.FAMILY_RELS.filter(function (r) { return r.g === g; }).map(function (r) { return opt(r.rel, r.rel, cur); }).join('') + '</optgroup>'; });
+    groups.forEach(function (g) { out += '<optgroup label="' + esc(tx(g)) + '">' + G.FAMILY_RELS.filter(function (r) { return r.g === g; }).map(function (r) { return opt(r.rel, tx(r.rel), cur); }).join('') + '</optgroup>'; });
     return out;
   }
-  function bondOptions(cur) { return opt('', 'By birth', cur) + G.FAM_BOND.map(function (o) { return opt(o, o === 'Foster' ? 'Foster child' : o, cur); }).join(''); }
+  function bondOptions(cur) { return opt('', tx('By birth'), cur) + G.FAM_BOND.map(function (o) { return opt(o, o === 'Foster' ? tx('Foster child') : tx(o), cur); }).join(''); }
   function ofOptions(c, m) {
     var r = G.relInfo(m.rel).role, role = function (x) { return G.relInfo(x.rel).role; };
-    if (r === 'child') return opt('', 'Current spouse / partner (or the first one listed)', m.of) + c.family.filter(function (x) { return ['spouse', 'exsp'].indexOf(role(x)) >= 0; }).map(function (p) { return opt(p.id, who(p), m.of); }).join('') + opt('none', 'Not listed (index person only)', m.of);
-    var hosts = c.family.filter(function (x) { return (r === 'sibsp' || r === 'nib') ? ['sib', 'phalf', 'mhalf'].indexOf(role(x)) >= 0 : r === 'cousin' ? ['pside', 'mside'].indexOf(role(x)) >= 0 : role(x) === 'child'; });
-    return hosts.length === 1 ? opt('', who(hosts[0]), m.of) : opt('', 'Choose…', m.of) + hosts.map(function (p) { return opt(p.id, who(p), m.of); }).join('');
+    if (r === 'child') return opt('', tx('Current spouse / partner (or the first one listed)'), m.of) + c.family.filter(function (x) { return ['spouse', 'exsp'].indexOf(role(x)) >= 0; }).map(function (p) { return opt(p.id, who(p), m.of); }).join('') + opt('none', tx('Not listed (index person only)'), m.of);
+    var hosts = c.family.filter(function (x) { return (r === 'sibsp' || r === 'nib') ? ['sib', 'phalf', 'mhalf'].indexOf(role(x)) >= 0 : r === 'cousin' ? ['pside', 'mside'].indexOf(role(x)) >= 0 : r === 'ggp' ? ['pgf', 'pgm', 'mgf', 'mgm'].indexOf(role(x)) >= 0 : role(x) === 'child'; });
+    return hosts.length === 1 ? opt('', who(hosts[0]), m.of) : opt('', tx('Choose…'), m.of) + hosts.map(function (p) { return opt(p.id, who(p), m.of); }).join('');
   }
   function memberEditor(c, m, i) {
     var ri = G.relInfo(m.rel), r = ri.role, sc = 'data-m="' + esc(m.id) + '"', ofLab = G.FAM_OF[r], partner = G.FAM_PARTNER_ROLES.indexOf(r) >= 0, kid = G.FAM_TWIN_ROLES.indexOf(r) >= 0;
     return '<div class="member__edit">' +
-      '<div class="flds">' + field('Name', textIn(sc, 'name', m.name, 'Name or initials'), 'w2') +
-        field('Relationship to the index person', '<select ' + sc + ' data-k="rel">' + relOptions(m.rel) + '</select>', 'w2') +
-        field('Age', textIn(sc, 'age', m.age, '33, 8 mo'), 'w1') +
-        (!ri.sex ? field('Sex', '<select ' + sc + ' data-k="sex">' + opt('', 'Not stated', m.sex) + opt('Male', 'Male', m.sex) + opt('Female', 'Female', m.sex) + '</select>', 'w1') : '') + '</div>' +
-      (ofLab || partner ? '<div class="flds">' + (ofLab ? field(ofLab, '<select ' + sc + ' data-k="of">' + ofOptions(c, m) + '</select>', 'w2') : '') +
-        (partner ? field('Couple’s relationship', '<select ' + sc + ' data-k="relStatus">' + opt('', r === 'exsp' ? 'Separated' : r === 'spouse' ? 'As set for the index person' : 'Married / partners', m.relStatus) + G.FAM_COUPLE.map(function (o) { return opt(o, o, m.relStatus); }).join('') + '</select>', 'w2') : '') + '</div>' : '') +
-      '<div class="chips">' + segBtns(sc, 'status', [['Living', 'Living'], ['Deceased', 'Deceased']], m.status || 'Living') +
-        chip(sc, 'psych', m.psych, 'Psychiatric disorder') + chip(sc, 'subst', m.subst, 'Substance use disorder') + chip(sc, 'withPt', m.withPt, 'Lives with the index person') +
-        (kid ? chip(sc, 'twin', m.twin, 'Twin') : '') + '</div>' +
-      (kid ? '<div class="flds">' + field('Joined the family', '<select ' + sc + ' data-k="bond">' + bondOptions(m.bond) + '</select>', 'w2') +
-        field('Pregnancy or loss', '<select ' + sc + ' data-k="preg">' + opt('', 'No (a living or deceased person)', m.preg) + opt('Pregnancy', 'Current pregnancy', m.preg) + G.FAM_PREG.slice(1).map(function (o) { return opt(o, o, m.preg); }).join('') + '</select>', 'w2') + '</div>' : '') +
-      '<div class="flds">' + field('Occupation / role', textIn(sc, 'occ', m.occ, 'welder, sole earner'), 'w2') + field('Condition / illness', textIn(sc, 'cond', m.cond, 'MDD, hypertension'), 'w2') +
-        field('Number of people (if a group)', textIn(sc, 'count', m.count, 'Leave empty for one person', ' inputmode="numeric"'), 'w2') + '</div>' +
-      '<p class="member__acts"><button type="button" class="link-btn" data-act="up" data-id="' + esc(m.id) + '">Move up</button><button type="button" class="link-btn" data-act="down" data-id="' + esc(m.id) + '">Move down</button><button type="button" class="link-btn danger" data-act="rm" data-id="' + esc(m.id) + '">Remove</button></p></div>';
+      '<div class="flds">' + field(tx('Name'), textIn(sc, 'name', m.name, tx('Name or initials')), 'w2') +
+        field(tx('Relationship to the index person'), '<select ' + sc + ' data-k="rel">' + relOptions(m.rel) + '</select>', 'w2') +
+        field(tx('Age'), textIn(sc, 'age', m.age, '33, 8 mo'), 'w1') +
+        (!ri.sex ? field(tx('Sex'), '<select ' + sc + ' data-k="sex">' + opt('', tx('Not stated'), m.sex) + opt('Male', tx('Male'), m.sex) + opt('Female', tx('Female'), m.sex) + '</select>', 'w1') : '') + '</div>' +
+      (ofLab || partner ? '<div class="flds">' + (ofLab ? field(tx(ofLab), '<select ' + sc + ' data-k="of">' + ofOptions(c, m) + '</select>', 'w2') : '') +
+        (partner ? field(tx('Couple’s relationship'), '<select ' + sc + ' data-k="relStatus">' + opt('', tx(r === 'exsp' ? 'Separated' : r === 'spouse' ? 'As set for the index person' : 'Married / partners'), m.relStatus) + G.FAM_COUPLE.map(function (o) { return opt(o, tx(o), m.relStatus); }).join('') + '</select>', 'w2') : '') + '</div>' : '') +
+      '<div class="chips">' + segBtns(sc, 'status', [['Living', tx('Living')], ['Deceased', tx('Deceased')]], m.status || 'Living') +
+        chip(sc, 'psych', m.psych, tx('Psychiatric disorder')) + chip(sc, 'subst', m.subst, tx('Substance use disorder')) + chip(sc, 'withPt', m.withPt, tx('Lives with the index person')) +
+        (kid ? chip(sc, 'twin', m.twin, tx('Twin')) : '') + '</div>' +
+      (kid ? '<div class="flds">' + field(tx('Joined the family'), '<select ' + sc + ' data-k="bond">' + bondOptions(m.bond) + '</select>', 'w2') +
+        field(tx('Pregnancy or loss'), '<select ' + sc + ' data-k="preg">' + opt('', tx('No (a living or deceased person)'), m.preg) + opt('Pregnancy', tx('Current pregnancy'), m.preg) + G.FAM_PREG.slice(1).map(function (o) { return opt(o, tx(o), m.preg); }).join('') + '</select>', 'w2') + '</div>' : '') +
+      '<div class="flds">' + field(tx('Occupation / role'), textIn(sc, 'occ', m.occ, tx('welder, sole earner')), 'w2') + field(tx('Condition / illness'), textIn(sc, 'cond', m.cond, 'MDD, hypertension'), 'w2') +
+        field(tx('Number of people (if a group)'), textIn(sc, 'count', m.count, tx('Leave empty for one person'), ' inputmode="numeric"'), 'w2') + '</div>' +
+      '<p class="member__acts"><button type="button" class="link-btn" data-act="up" data-id="' + esc(m.id) + '">' + esc(tx('Move up')) + '</button><button type="button" class="link-btn" data-act="down" data-id="' + esc(m.id) + '">' + esc(tx('Move down')) + '</button><button type="button" class="link-btn danger" data-act="rm" data-id="' + esc(m.id) + '">' + esc(tx('Remove')) + '</button></p></div>';
   }
+  function memberTitle(m) { return m.name || (m.rel ? tx(m.rel) : tx('New family member')); }
+  function memberSub(m) { return [m.name && m.rel ? tx(m.rel) : '', m.age, m.occ, m.cond].filter(Boolean).join(' · '); }
   function memberRow(c, m, i) {
-    var open = openMember === m.id, sub = [m.name ? m.rel : '', m.age, m.occ, m.cond].filter(Boolean).join(' · ');
+    var open = openMember === m.id, sub = memberSub(m);
     return '<div class="member' + (open ? ' is-open' : '') + '" id="m-' + esc(m.id) + '">' +
       '<button type="button" class="member__head" data-act="toggle" data-id="' + esc(m.id) + '" aria-expanded="' + open + '"><span class="member__ico">' + memberIcon(m) + '</span>' +
-      '<span class="member__txt"><strong>' + esc(m.name || m.rel || 'New family member') + '</strong><small>' + esc(sub || (m.rel ? '' : 'Choose a relationship')) + '</small></span>' +
+      '<span class="member__txt"><strong>' + esc(memberTitle(m)) + '</strong><small>' + esc(sub || (m.rel ? '' : tx('Choose a relationship'))) + '</small></span>' +
       '<svg class="member__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
       (open ? memberEditor(c, m, i) : '') + '</div>';
   }
   function stepFamily(c) {
     G.famIds(c);
     var role = function (x) { return G.relInfo(x.rel).role; }, hasBoth = c.family.some(function (m) { return role(m) === 'father'; }) && c.family.some(function (m) { return role(m) === 'mother'; }), hasSp = c.family.some(function (m) { return role(m) === 'spouse'; });
-    var coupleOpts = [['', 'Married']].concat(G.FAM_COUPLE.slice(1).map(function (o) { return [o, o]; }));
-    var html = '<section class="card idx" style="--c:#1C7A86"><h2 class="grp__h"><span class="grp__dot"></span>Index person <small>the patient or client; drawn with a double outline</small></h2>' +
-      '<div class="flds">' + field('Name shown on the genogram', textIn('data-c="1"', 'ptName', c.ptName, 'Patient, initials or an alias'), 'w2') + field('Age', textIn('data-c="1"', 'ptAge', c.ptAge, '33'), 'w1') +
-        '<div class="fld w2"><span>Sex</span>' + segBtns('data-c="1"', 'ptSex', [['Male', 'Male'], ['Female', 'Female'], ['', 'Not stated']], c.ptSex) + '</div></div>' +
-      '<div class="flds">' + field('Occupation / role', textIn('data-c="1"', 'ptOcc', c.ptOcc, 'BS ME graduate, unemployed'), 'w2') + field('Condition / illness', textIn('data-c="1"', 'ptCond', c.ptCond, 'schizophrenia; CKD 3b'), 'w2') +
-        field('Joined the family', '<select data-c="1" data-k="ptBond">' + bondOptions(c.ptBond) + '</select>', 'w1') + '</div>' +
-      '<div class="chips">' + chip('data-c="1"', 'ptFill', c.ptFill !== false, 'Psychiatric disorder') + chip('data-c="1"', 'ptSubst', c.ptSubst, 'Substance use disorder') + chip('data-c="1"', 'ptDead', c.ptDead, 'Deceased') + '</div></section>';
-    html += '<section class="quick"><h2 class="quick__h">Add a family member</h2><div class="quick__chips">' + QUICK.map(function (r) { var g = groupOf({ rel: r });
-        return '<button type="button" class="qchip" style="--c:' + g.c + '" data-act="add" data-rel="' + esc(r) + '">+ ' + esc(r) + '</button>'; }).join('') +
-      '<button type="button" class="qchip qchip--more" data-act="add" data-rel="">+ Someone else…</button></div>' +
-      '<p class="hint">Initials are enough. “Number of people” is only for a group: type 5 and one symbol stands for 5 former partners. Leave it empty for one person.</p></section>';
+    var coupleOpts = [['', tx('Married')]].concat(G.FAM_COUPLE.slice(1).map(function (o) { return [o, tx(o)]; }));
+    var html = '<section class="card idx" style="--c:#1C7A86"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(tx('Index person')) + ' <small>' + esc(tx('the patient or client; drawn with a double outline')) + '</small></h2>' +
+      '<div class="flds">' + field(tx('Name shown on the genogram'), textIn('data-c="1"', 'ptName', c.ptName, tx('Patient, initials or an alias')), 'w2') + field(tx('Age'), textIn('data-c="1"', 'ptAge', c.ptAge, '33'), 'w1') +
+        '<div class="fld w2"><span>' + esc(tx('Sex')) + '</span>' + segBtns('data-c="1"', 'ptSex', [['Male', tx('Male')], ['Female', tx('Female')], ['', tx('Not stated')]], c.ptSex) + '</div></div>' +
+      '<div class="flds">' + field(tx('Occupation / role'), textIn('data-c="1"', 'ptOcc', c.ptOcc, tx('BS ME graduate, unemployed')), 'w2') + field(tx('Condition / illness'), textIn('data-c="1"', 'ptCond', c.ptCond, 'schizophrenia; CKD 3b'), 'w2') +
+        field(tx('Joined the family'), '<select data-c="1" data-k="ptBond">' + bondOptions(c.ptBond) + '</select>', 'w1') + '</div>' +
+      '<div class="chips">' + chip('data-c="1"', 'ptFill', c.ptFill !== false, tx('Psychiatric disorder')) + chip('data-c="1"', 'ptSubst', c.ptSubst, tx('Substance use disorder')) + chip('data-c="1"', 'ptDead', c.ptDead, tx('Deceased')) + '</div></section>';
+    html += '<section class="quick"><h2 class="quick__h">' + esc(tx('Add a family member')) + '</h2><div class="quick__chips">' + QUICK.map(function (r) { var g = groupOf({ rel: r });
+        return '<button type="button" class="qchip" style="--c:' + g.c + '" data-act="add" data-rel="' + esc(r) + '">+ ' + esc(tx(r)) + '</button>'; }).join('') +
+      '<button type="button" class="qchip qchip--more" data-act="add" data-rel="">+ ' + esc(tx('Someone else…')) + '</button></div>' +
+      '<p class="hint">' + esc(tx('Initials are enough. “Number of people” is only for a group: type 5 and one symbol stands for 5 former partners. Leave it empty for one person.')) + '</p></section>';
     if (hasBoth || hasSp) html += '<section class="card couple">' +
-      (hasBoth ? '<div class="fld"><span>Parents’ relationship</span>' + segBtns('data-c="1"', 'parentsRel', coupleOpts, c.parentsRel === 'Married' ? '' : c.parentsRel) + '</div>' : '') +
-      (hasSp ? '<div class="fld"><span>Index person and current spouse / partner</span>' + segBtns('data-c="1"', 'ptRel', coupleOpts, c.ptRel === 'Married' ? '' : c.ptRel) + '</div>' : '') + '</section>';
+      (hasBoth ? '<div class="fld"><span>' + esc(tx('Parents’ relationship')) + '</span>' + segBtns('data-c="1"', 'parentsRel', coupleOpts, c.parentsRel === 'Married' ? '' : c.parentsRel) + '</div>' : '') +
+      (hasSp ? '<div class="fld"><span>' + esc(tx('Index person and current spouse / partner')) + '</span>' + segBtns('data-c="1"', 'ptRel', coupleOpts, c.ptRel === 'Married' ? '' : c.ptRel) + '</div>' : '') + '</section>';
     GROUPS.forEach(function (g) {
       var ms = c.family.filter(function (m) { return groupOf(m) === g; });
       if (!ms.length) return;
-      html += '<section class="grp" style="--c:' + g.c + '"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(g.label) + ' <small>' + ms.length + '</small></h2>' + ms.map(function (m) { return memberRow(c, m, c.family.indexOf(m)); }).join('') + '</section>';
+      html += '<section class="grp" style="--c:' + g.c + '"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(tx(g.label)) + ' <small>' + ms.length + '</small></h2>' + ms.map(function (m) { return memberRow(c, m, c.family.indexOf(m)); }).join('') + '</section>';
     });
-    if (c.family.length > 1) html += '<div class="chips chips--foot">' + chip('data-c="1"', 'byAge', c.byAge !== false, 'Oldest to youngest automatically') + '<button type="button" class="link-btn" data-act="sort">Sort this list by generation and age</button></div>';
+    if (c.family.length > 1) html += '<div class="chips chips--foot">' + chip('data-c="1"', 'byAge', c.byAge !== false, tx('Oldest to youngest automatically')) + '<button type="button" class="link-btn" data-act="sort">' + esc(tx('Sort this list by generation and age')) + '</button></div>';
     return html;
   }
   function linkIcon(type) { return miniSVG(G.linkPrims([[0.15, 0.5], [1.85, 0.5]], type, 0.95), 2, 1, 30); }
   function stepLines(c) {
     G.famIds(c);
-    var people = [['pt', (c.ptName || 'Index person') + ' (index person)']].concat(c.family.filter(function (m) { return m.name || m.rel; }).map(function (m) { return [m.id, who(m)]; }));
-    var sel = function (i, k, cur, opts) { return '<select data-l="' + i + '" data-k="' + k + '">' + opt('', 'Choose…', cur) + opts.map(function (o) { return opt(o[0], o[1], cur); }).join('') + '</select>'; };
-    return '<section class="card"><h2 class="grp__h" style="--c:#0E8A8A"><span class="grp__dot"></span>Relationship lines <small>how two people get along</small></h2>' +
-      (c.family.length ? '' : '<p class="hint">Add family members first, then come back to connect them.</p>') +
+    var people = [['pt', txf('{name} (index person)', { name: c.ptName || tx('Index person') })]].concat(c.family.filter(function (m) { return m.name || m.rel; }).map(function (m) { return [m.id, who(m)]; }));
+    var sel = function (i, k, cur, opts) { return '<select data-l="' + i + '" data-k="' + k + '">' + opt('', tx('Choose…'), cur) + opts.map(function (o) { return opt(o[0], o[1], cur); }).join('') + '</select>'; };
+    return '<section class="card"><h2 class="grp__h" style="--c:#0E8A8A"><span class="grp__dot"></span>' + esc(tx('Relationship lines')) + ' <small>' + esc(tx('how two people get along')) + '</small></h2>' +
+      (c.family.length ? '' : '<p class="hint">' + esc(tx('Add family members first, then come back to connect them.')) + '</p>') +
       c.links.map(function (l, i) {
-        return '<div class="linkrow"><span class="linkrow__ico">' + (l.type ? linkIcon(l.type) : '') + '</span>' + field('Person', sel(i, 'a', l.a, people), 'w2') +
-          field('Relationship', sel(i, 'type', l.type, G.FAM_LINKS.map(function (t) { return [t.type, t.dir ? t.type + ' →' : t.type]; })), 'w2') + field('Other person', sel(i, 'b', l.b, people), 'w2') +
-          '<button type="button" class="link-btn danger" data-act="rml" data-i="' + i + '" aria-label="Remove this line">Remove</button></div>'; }).join('') +
-      '<p><button type="button" class="btn" data-act="addl"' + (c.family.length ? '' : ' disabled') + '>+ Add a relationship line</button></p></section>' +
-      '<section class="card"><h2 class="grp__h" style="--c:#6A5E78"><span class="grp__dot"></span>The kinds of line</h2><div class="lib lib--tight">' + G.FAM_LINKS.map(function (t) {
-        return '<div class="lib__row"><span class="lib__ico lib__ico--wide">' + linkIcon(t.type) + '</span><span><strong>' + esc(t.type) + '</strong></span></div>'; }).join('') + '</div></section>';
+        return '<div class="linkrow"><span class="linkrow__ico">' + (l.type ? linkIcon(l.type) : '') + '</span>' + field(tx('Person'), sel(i, 'a', l.a, people), 'w2') +
+          field(tx('Relationship'), sel(i, 'type', l.type, G.FAM_LINKS.map(function (t) { return [t.type, t.dir ? tx(t.type) + ' →' : tx(t.type)]; })), 'w2') + field(tx('Other person'), sel(i, 'b', l.b, people), 'w2') +
+          '<button type="button" class="link-btn danger" data-act="rml" data-i="' + i + '" aria-label="' + esc(tx('Remove this line')) + '">' + esc(tx('Remove')) + '</button></div>'; }).join('') +
+      '<p><button type="button" class="btn" data-act="addl"' + (c.family.length ? '' : ' disabled') + '>+ ' + esc(tx('Add a relationship line')) + '</button></p></section>' +
+      '<section class="card"><h2 class="grp__h" style="--c:#6A5E78"><span class="grp__dot"></span>' + esc(tx('The kinds of line')) + '</h2><div class="lib lib--tight">' + G.FAM_LINKS.map(function (t) {
+        return '<div class="lib__row"><span class="lib__ico lib__ico--wide">' + linkIcon(t.type) + '</span><span><strong>' + esc(tx(t.type)) + '</strong></span></div>'; }).join('') + '</div></section>';
   }
   function stepView(c) {
     var L = null; try { L = layoutOf(c, true); } catch (e) { L = null; }
     viewNodes = L ? L.nodes : null;
-    if (!L) return '<div class="empty"><h2>Nothing to draw yet</h2><p>Add at least one family member and the genogram appears here.</p><p><a class="btn btn--solid" href="#/chart/' + esc(c.id) + '">Add the family</a></p></div>';
-    return '<div class="viewbar"><div class="segb" role="group" aria-label="Zoom"><button type="button" data-act="zoomout" aria-label="Zoom out">−</button><button type="button" data-act="zoomfit">Fit</button><button type="button" data-act="zoomin" aria-label="Zoom in">+</button></div>' +
-        chip('data-c="1"', 'showTitle', c.showTitle !== false, 'Show the title and date') + chip('data-c="1"', 'initials', c.initials, 'Initials only') + '</div>' +
+    if (!L) return '<div class="empty"><h2>' + esc(tx('Nothing to draw yet')) + '</h2><p>' + esc(tx('Add at least one family member and the genogram appears here.')) + '</p><p><a class="btn btn--solid" href="#/chart/' + esc(c.id) + '">' + esc(tx('Add the family')) + '</a></p></div>';
+    return '<div class="viewbar"><div class="segb" role="group" aria-label="' + esc(tx('Zoom')) + '"><button type="button" data-act="zoomout" aria-label="' + esc(tx('Zoom out')) + '">−</button><button type="button" data-act="zoomfit">' + esc(tx('Fit')) + '</button><button type="button" data-act="zoomin" aria-label="' + esc(tx('Zoom in')) + '">+</button></div>' +
+        chip('data-c="1"', 'showTitle', c.showTitle !== false, tx('Show the title and date')) + chip('data-c="1"', 'initials', c.initials, tx('Initials only')) + '</div>' +
       '<div class="canvas canvas--pz" id="canvas"><div class="canvas__in" id="canvas-in">' + G.svg(L, VIEW_UNIT) + '</div></div>' +
-      '<p class="hint">Tap a person to edit them. Pinch, or use + and −, to zoom, then drag to move around.</p>' +
-      (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">Not drawn</p>' + esc(L.left.join(', ')) + '. A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for two partners: put several former partners in one symbol with “Number of people”.</div>' : '') +
-      (L.linksLeft.length ? '<div class="callout callout--caution"><p class="callout__title">Lines not drawn</p>' + esc(L.linksLeft.join('; ')) + '. One of the two people is not on the chart.</div>' : '') +
-      '<p class="hint">The key lists only what this genogram uses. See <a href="#/symbols">Symbols and lines</a> for everything the app can draw.</p>';
+      '<p class="hint">' + esc(tx('Tap a person to edit them. Pinch, or use + and −, to zoom, then drag to move around.')) + '</p>' +
+      (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">' + esc(tx('Not drawn')) + '</p>' + esc(L.left.join(', ')) + '. ' + esc(tx('A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for four partners: put more in one symbol with “Number of people”.')) + '</div>' : '') +
+      (L.linksLeft.length ? '<div class="callout callout--caution"><p class="callout__title">' + esc(tx('Lines not drawn')) + '</p>' + esc(L.linksLeft.join('; ')) + '. ' + esc(tx('One of the two people is not on the chart.')) + '</div>' : '') +
+      '<p class="hint">' + txh('The key lists only what this genogram uses. See {link} for everything the app can draw.', { link: '<a href="#/symbols">' + esc(tx('Symbols and lines')) + '</a>' }) + '</p>';
   }
   VIEWS.chart = function (id, step) {
     var c = getChart(id);
-    if (!c) return '<div class="wrap page"><div class="empty"><h2>This genogram is not on this device</h2><p>It may have been deleted, or made on another phone or computer.</p><p><a class="btn btn--solid" href="#/">Back to your genograms</a></p></div></div>';
+    if (!c) return '<div class="wrap page"><div class="empty"><h2>' + esc(tx('This genogram is not on this device')) + '</h2><p>' + esc(tx('It may have been deleted, or made on another phone or computer.')) + '</p><p><a class="btn btn--solid" href="#/">' + esc(tx('Back to your genograms')) + '</a></p></div></div>';
     step = step === 'lines' || step === 'view' ? step : 'family';
     var n = peopleCount(c), base = '#/chart/' + esc(c.id);
-    return '<div class="wrap page editor" data-chart="' + esc(c.id) + '" data-step="' + step + '"><p class="crumb"><a href="#/">Your genograms</a> / ' + esc(c.title || 'Family genogram') + '</p>' +
-      '<label class="titlefld"><span class="sr-only">Title of this genogram</span><input type="text" data-c="1" data-k="title" value="' + esc(c.title) + '" placeholder="Family genogram" autocomplete="off"></label>' +
-      '<nav class="stepnav" aria-label="Steps">' + STEPS.map(function (s, i) { return '<a href="' + base + (s[0] === 'family' ? '' : '/' + s[0]) + '" style="--c:' + s[2] + '"' + (s[0] === step ? ' aria-current="step"' : '') + '><span>' + (i + 1) + '</span>' + s[1] + '</a>'; }).join('') + '</nav>' +
+    return '<div class="wrap page editor" data-chart="' + esc(c.id) + '" data-step="' + step + '"><p class="crumb"><a href="#/">' + esc(tx('Your genograms')) + '</a> / ' + esc(c.title || tx('Family genogram')) + '</p>' +
+      '<label class="titlefld"><span class="sr-only">' + esc(tx('Title of this genogram')) + '</span><input type="text" data-c="1" data-k="title" value="' + esc(c.title) + '" placeholder="' + esc(tx('Family genogram')) + '" autocomplete="off"></label>' +
+      '<nav class="stepnav" aria-label="' + esc(tx('Steps')) + '">' + STEPS.map(function (s, i) { return '<a href="' + base + (s[0] === 'family' ? '' : '/' + s[0]) + '" style="--c:' + s[2] + '"' + (s[0] === step ? ' aria-current="step"' : '') + '><span>' + (i + 1) + '</span>' + esc(tx(s[1])) + '</a>'; }).join('') + '</nav>' +
       '<div class="editor__body">' + (step === 'family' ? stepFamily(c) : step === 'lines' ? stepLines(c) : stepView(c)) + '</div>' +
-      '<div class="actionbar"><span class="actionbar__n" id="pcount">' + n + (n === 1 ? ' person' : ' people') + ' on the chart</span><span class="actionbar__btns">' +
-        (step !== 'view' ? '<button type="button" class="btn" data-act="undo" id="undo-btn"' + (canUndo(c) ? '' : ' disabled') + '>Undo</button>' : '') +
-        (step === 'family' ? '<a class="btn" href="' + base + '/lines">Relationships</a><a class="btn btn--solid" href="' + base + '/view">See the genogram</a>'
-          : step === 'lines' ? '<a class="btn" href="' + base + '">Family</a><a class="btn btn--solid" href="' + base + '/view">See the genogram</a>'
-          : '<a class="btn" href="' + base + '">Edit</a><button type="button" class="btn" data-act="sharefile">Share file</button><button type="button" class="btn" data-act="png"' + (c.family.length ? '' : ' disabled') + '>Save picture</button><button type="button" class="btn btn--solid" data-act="pdf"' + (c.family.length ? '' : ' disabled') + '>Save PDF</button>') +
+      '<div class="actionbar"><span class="actionbar__n" id="pcount">' + esc(peopleText(n, true)) + '</span><span class="actionbar__btns">' +
+        (step !== 'view' ? '<button type="button" class="btn" data-act="undo" id="undo-btn"' + (canUndo(c) ? '' : ' disabled') + '>' + esc(tx('Undo')) + '</button>' : '') +
+        (step === 'family' ? '<a class="btn" href="' + base + '/lines">' + esc(tx('Relationships')) + '</a><a class="btn btn--solid" href="' + base + '/view">' + esc(tx('See the genogram')) + '</a>'
+          : step === 'lines' ? '<a class="btn" href="' + base + '">' + esc(tx('Family')) + '</a><a class="btn btn--solid" href="' + base + '/view">' + esc(tx('See the genogram')) + '</a>'
+          : '<a class="btn" href="' + base + '">' + esc(tx('Edit')) + '</a><button type="button" class="btn" data-act="sharefile">' + esc(tx('Share file')) + '</button><button type="button" class="btn" data-act="png"' + (c.family.length ? '' : ' disabled') + '>' + esc(tx('Save picture')) + '</button><button type="button" class="btn btn--solid" data-act="pdf"' + (c.family.length ? '' : ' disabled') + '>' + esc(tx('Save PDF')) + '</button>') +
       '</span></div><p class="status" id="ed-status" role="status" aria-live="polite"></p></div>';
   };
   function curChart() { var el = main.querySelector('.editor'); return el ? getChart(el.getAttribute('data-chart')) : null; }
@@ -862,7 +875,7 @@
     if (!canUndo(c)) return false;
     var prev = JSON.parse(undoStacks[c.id].pop());
     DB.byId[c.id] = prev; typingEl = null; if (openMember && !memberByIdSafe(prev, openMember)) openMember = null;
-    saveNow(); rebuildIndex(); rerender(); say('Undone.'); return true;
+    saveNow(); rebuildIndex(); rerender(); say(tx('Undone.')); return true;
   }
   function memberByIdSafe(c, id) { return (c.family || []).some(function (m) { return m && m.id === id; }); }
   main.addEventListener('focusout', function () { typingEl = null; });
@@ -896,10 +909,10 @@
       if (el.tagName === 'SELECT') { if (k === 'rel') delete m.of; rerender(); return; }
       var row = el.closest('.member');
       if (row) { var st = row.querySelector('.member__txt strong'), sm = row.querySelector('.member__txt small'), ic = row.querySelector('.member__ico');
-        if (st) st.textContent = m.name || m.rel || 'New family member';
-        if (sm) sm.textContent = [m.name ? m.rel : '', m.age, m.occ, m.cond].filter(Boolean).join(' · ');
+        if (st) st.textContent = memberTitle(m);
+        if (sm) sm.textContent = memberSub(m);
         if (ic) ic.innerHTML = memberIcon(m); }
-      var pc = document.getElementById('pcount'), n = peopleCount(c); if (pc) pc.textContent = n + (n === 1 ? ' person' : ' people') + ' on the chart';
+      var pc = document.getElementById('pcount'), n = peopleCount(c); if (pc) pc.textContent = peopleText(n, true);
       return;
     }
     if (el.getAttribute('data-l') != null) { var l = c.links[+el.getAttribute('data-l')]; if (l) { l[k] = el.value; touch(c); rerender(); } }
@@ -912,7 +925,7 @@
     if (act === 'sample') { var sc = addChart(sampleChart()); location.hash = '#/chart/' + sc.id + '/view'; return; }
     if (act === 'dup') { var src = getChart(id); if (!src) return; var cp = JSON.parse(JSON.stringify(src)); cp.id = uid('c'); cp.title = (src.title || 'Family genogram') + ' (copy)'; cp.created = cp.updated = new Date().toISOString(); addChart(cp); rerender(); return; }
     if (act === 'del') { var dc = getChart(id); if (!dc) return; var at0 = DB.order.indexOf(id); removeChart(id); rerender();
-      snack('Deleted “' + (dc.title || 'Family genogram') + '”.', 'Undo', function () { if (getChart(dc.id)) return; DB.byId[dc.id] = dc; DB.order.splice(Math.max(0, at0), 0, dc.id); saveNow(); rebuildIndex(); if (currentKey() === 'home') rerender(); });
+      snack(txf('Deleted “{title}”.', { title: dc.title || tx('Family genogram') }), tx('Undo'), function () { if (getChart(dc.id)) return; DB.byId[dc.id] = dc; DB.order.splice(Math.max(0, at0), 0, dc.id); saveNow(); rebuildIndex(); if (currentKey() === 'home') rerender(); });
       return; }
     if (!c) return;
     if (act === 'undo') { undoChart(c); return; }
@@ -924,10 +937,10 @@
     if (act === 'add') { snap(c); var m = { id: uid('f'), name: '', rel: b.getAttribute('data-rel') || '', age: '', status: 'Living' }; c.family.push(m); openMember = m.id; touch(c); rerender();
       var row = document.getElementById('m-' + m.id); if (row) { row.scrollIntoView({ block: 'center' }); var first = row.querySelector(m.rel ? 'input[data-k="name"]' : 'select[data-k="rel"]'); if (first) first.focus({ preventScroll: true }); } return; }
     if (act === 'rm') { var rmm = memberById(c, id); if (!rmm) return; snap(c);
-      c.family = c.family.filter(function (x) { return x !== rmm; }); c.family.forEach(function (x) { if (x.of === id) delete x.of; }); c.links = c.links.filter(function (l) { return l.a !== id && l.b !== id; }); openMember = null; touch(c); rerender(); say('Removed ' + (rmm.name || rmm.rel || 'the family member') + '. Tap Undo to bring them back.'); return; }
+      c.family = c.family.filter(function (x) { return x !== rmm; }); c.family.forEach(function (x) { if (x.of === id) delete x.of; }); c.links = c.links.filter(function (l) { return l.a !== id && l.b !== id; }); openMember = null; touch(c); rerender(); say(txf('Removed {who}. Tap Undo to bring them back.', { who: rmm.name || (rmm.rel ? tx(rmm.rel) : tx('the family member')) })); return; }
     if (act === 'up' || act === 'down') { var mm = memberById(c, id), g = groupOf(mm), same = c.family.filter(function (x) { return groupOf(x) === g; }), at = same.indexOf(mm), other = same[at + (act === 'up' ? -1 : 1)];
       if (other) { snap(c); var i1 = c.family.indexOf(mm), i2 = c.family.indexOf(other); c.family[i1] = other; c.family[i2] = mm; touch(c); rerender(); } return; }
-    if (act === 'sort') { snap(c); c.family = G.famSorted({ family: c.family }); touch(c); rerender(); say('Sorted by generation and age.'); return; }
+    if (act === 'sort') { snap(c); c.family = G.famSorted({ family: c.family }); touch(c); rerender(); say(tx('Sorted by generation and age.')); return; }
     if (act === 'addl') { snap(c); c.links.push({ a: 'pt', type: '', b: '' }); touch(c); rerender(); return; }
     if (act === 'rml') { snap(c); c.links.splice(+b.getAttribute('data-i'), 1); touch(c); rerender(); return; }
     if (act === 'zoomin' || act === 'zoomout' || act === 'zoomfit') { pzButton(act); return; }
@@ -967,21 +980,21 @@
   function deliver(bytes, name, type, done) {
     var file = null; try { file = new File([bytes], name, { type: type }); } catch (e) {}
     var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
-    if (standalone && file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).then(function () { say(done); }, function () { say('Not saved.'); }); return; }
+    if (standalone && file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).then(function () { say(done); }, function () { say(tx('Not saved.')); }); return; }
     var url = URL.createObjectURL(new Blob([bytes], { type: type })), a = document.createElement('a');
     a.href = url; a.download = name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000); say(done);
   }
   function exportChart(c, kind) {
-    say('Preparing…');
+    say(tx('Preparing…'));
     renderCanvas(c).then(function (cv) {
-      if (kind === 'png') return canvasBytes(cv, 'image/png').then(function (b) { deliver(b, fileBase(c) + '.png', 'image/png', 'Picture saved: ' + fileBase(c) + '.png'); });
-      return canvasBytes(cv, 'image/jpeg', 0.93).then(function (b) { deliver(pdfFromJpeg(b, cv.width, cv.height, c.title), fileBase(c) + '.pdf', 'application/pdf', 'PDF saved: ' + fileBase(c) + '.pdf'); });
-    }).catch(function () { say('The genogram could not be saved. Try “Save picture”, or a smaller family.'); });
+      if (kind === 'png') return canvasBytes(cv, 'image/png').then(function (b) { deliver(b, fileBase(c) + '.png', 'image/png', txf('Picture saved: {file}', { file: fileBase(c) + '.png' })); });
+      return canvasBytes(cv, 'image/jpeg', 0.93).then(function (b) { deliver(pdfFromJpeg(b, cv.width, cv.height, c.title), fileBase(c) + '.pdf', 'application/pdf', txf('PDF saved: {file}', { file: fileBase(c) + '.pdf' })); });
+    }).catch(function () { say(tx('The genogram could not be saved. Try “Save picture”, or a smaller family.')); });
   }
   /* One genogram as a file, to send to a colleague or open in PsychInterview (Family > Open a Genogram file) */
   function shareChart(c) {
     var payload = { app: 'genogram', kind: 'chart', format: 1, exported: new Date().toISOString(), attribution: ATTRIBUTION, chart: c };
-    deliver(JSON.stringify(payload, null, 1), fileBase(c) + '.genogram.json', 'application/json', 'File saved: ' + fileBase(c) + '.genogram.json');
+    deliver(JSON.stringify(payload, null, 1), fileBase(c) + '.genogram.json', 'application/json', txf('File saved: {file}', { file: fileBase(c) + '.genogram.json' }));
   }
   var TEXT_KEYS = ['name', 'rel', 'age', 'sex', 'status', 'occ', 'cond', 'count', 'of', 'relStatus', 'bond', 'preg', 'desc'], FLAG_KEYS = ['psych', 'subst', 'withPt', 'twin'];
   function cleanChart(src) {   // only the fields this app knows, as plain text and yes/no values
@@ -1000,11 +1013,11 @@
   function openChartFile(file) {
     if (!file) return;
     var reader = new FileReader();
-    reader.onerror = function () { say('That file could not be read.'); };
+    reader.onerror = function () { say(tx('That file could not be read.')); };
     reader.onload = function () {
       var p = null; try { p = JSON.parse(reader.result); } catch (e) {}
-      if (p && p.app === 'genogram' && p.data && !p.chart) { say('That is a full backup. Use “Import backup” at the bottom of the page.'); return; }
-      if (!p || p.app !== 'genogram' || p.kind !== 'chart' || !p.chart || typeof p.chart !== 'object') { say('That is not a genogram file from this app.'); return; }
+      if (p && p.app === 'genogram' && p.data && !p.chart) { say(tx('That is a full backup. Use “Import backup” at the bottom of the page.')); return; }
+      if (!p || p.app !== 'genogram' || p.kind !== 'chart' || !p.chart || typeof p.chart !== 'object') { say(tx('That is not a genogram file from this app.')); return; }
       var c = addChart(cleanChart(p.chart)); location.hash = '#/chart/' + c.id + (c.family.length ? '/view' : '');
     };
     reader.readAsText(file);
@@ -1087,7 +1100,7 @@
   window.__genoTest = { pdfFromJpeg: pdfFromJpeg, renderCanvas: renderCanvas, canvasBytes: canvasBytes, getChart: getChart };   // used by the checks in tools/
 
   /* ---------- Symbols library ---------- */
-  var LIB = [
+  var LIB = [   // English here; translated when drawn (VIEWS.symbols), so a language switch needs no reload
     { h: 'Who the person is', c: '#1C7A86', rows: [
       ['Male', 'Square.', symPrims({ sex: 'M' })], ['Female', 'Circle.', symPrims({ sex: 'F' })], ['Sex not stated', 'Diamond. Also used for a group of children of both sexes.', symPrims({ sex: 'U' })],
       ['Index person', 'Double outline with an arrow pointing at it: the patient or client the genogram is about.', symPrims({ sex: 'F', pt: true })],
@@ -1119,24 +1132,25 @@
   ];
   TITLES.symbols = 'Symbols and lines';
   VIEWS.symbols = function () {
-    return '<div class="wrap page"><header class="page__head"><h1>Symbols and lines</h1><p>The standard genogram notation this app draws. The key on each genogram lists only what that chart uses.</p></header>' +
+    return '<div class="wrap page"><header class="page__head"><h1>' + esc(tx('Symbols and lines')) + '</h1><p>' + esc(tx('The standard genogram notation this app draws. The key on each genogram lists only what that chart uses.')) + '</p></header>' +
       LIB.map(function (sec) {
-        return '<section class="grp" style="--c:' + sec.c + '"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(sec.h) + '</h2><div class="card lib">' + sec.rows.map(function (r) {
+        return '<section class="grp" style="--c:' + sec.c + '"><h2 class="grp__h"><span class="grp__dot"></span>' + esc(tx(sec.h)) + '</h2><div class="card lib">' + sec.rows.map(function (r) {
           var pic = r[2] ? miniSVG(r[2], r[3] || 1.2, r[3] ? 1 : 1.2, 34) : linkIcon(r[0]);
-          return '<div class="lib__row"><span class="lib__ico' + (r[3] || !r[2] ? ' lib__ico--wide' : '') + '">' + pic + '</span><span><strong>' + esc(r[0]) + '</strong><small>' + esc(r[1]) + '</small></span></div>'; }).join('') + '</div></section>';
+          return '<div class="lib__row"><span class="lib__ico' + (r[3] || !r[2] ? ' lib__ico--wide' : '') + '">' + pic + '</span><span><strong>' + esc(tx(r[0])) + '</strong><small>' + esc(tx(r[1])) + '</small></span></div>'; }).join('') + '</div></section>';
       }).join('') + '</div>';
   };
 
   /* ---------- How to use ---------- */
-  var GUIDE = [
+  var GUIDE = [   // English here; translated when drawn (VIEWS.guide)
     ['Start with the index person', 'Open a new genogram and fill in the index person: the name to show (initials or an alias are fine), age and sex. The shading for a psychiatric disorder is on to begin with; tap it to turn it off. “Substance use disorder” darkens the lower half of the symbol.'],
-    ['Add the family with one tap', 'Tap + Father, + Mother, + Sister and so on. Each person appears as a row; tap a row to open it and add the age, occupation and conditions. “Someone else…” has every other relationship: step-parents, half-siblings, former partners, nephews and nieces, grandchildren, grandparents, aunts and uncles, and cousins.'],
+    ['Add the family with one tap', 'Tap + Father, + Mother, + Sister and so on. Each person appears as a row; tap a row to open it and add the age, occupation and conditions. “Someone else…” has every other relationship: step-parents, half-siblings, former partners, nephews and nieces, grandchildren, grandparents and great-grandparents, aunts and uncles, and cousins.'],
     ['Oldest to youngest', 'Brothers, sisters and children are placed by age, oldest on the left, whatever order you typed them in. Ages such as “8 mo” or “1 y 6 mo” are understood. For people of the same age, use Move up and Move down; for twins, turn on Twin for each of them.'],
     ['Children with different partners', 'Add each partner first (Husband, Wife, Partner, Former partner). Then open the child and choose the other parent. Leave it on the first choice and the child goes with the current spouse or partner.'],
     ['Step-parents and half-siblings', 'A stepfather is drawn beside the mother, a stepmother beside the father. A paternal half-sibling hangs between the father and the stepmother; if no stepmother was added, a dashed “?” parent is drawn.'],
+    ['Great-grandparents', 'Add the grandparent first, then the great-grandfather or great-grandmother, and choose whose parent they are. Each grandparent has room for two parents.'],
     ['Cousins', 'Add the aunt or uncle first, then add the cousin and choose whose child they are. Paternal cousins are drawn on the left, maternal cousins on the right.'],
     ['Adopted and foster children, pregnancies and losses', 'Open a brother, sister, child, nephew, niece, grandchild or cousin. “Joined the family” draws a dashed line for an adopted child and a dotted line for a foster child. “Pregnancy or loss” draws a triangle for a current pregnancy, a small filled circle for a miscarriage, a small cross for an abortion and a small crossed symbol for a stillbirth.'],
-    ['Many people in one symbol', 'Type a number in “Number of people” to let one symbol stand for several people, such as 5 former partners or 7 children. Each person has room for two partners on the chart, so this is the way to show more.'],
+    ['Many people in one symbol', 'Type a number in “Number of people” to let one symbol stand for several people, such as 5 former partners or 7 children. Each person has room for four partners on the chart (the third and fourth are joined by a line that goes over the top), so this is the way to show more.'],
     ['Relationship lines', 'In step 2, pick two people and how they relate. Lines between generations start under the older person’s label so they do not run through the words.'],
     ['Tap, zoom and undo', 'On the chart, tap a person to open their card. Pinch, or use + and −, to zoom in, then drag to move around; Fit shows the whole chart again. While editing, Undo takes back the last change, one step at a time. A deleted genogram can be brought back from the message that appears.'],
     ['Save and share', 'In step 3, Save picture makes a PNG and Save PDF makes a one-page A4 PDF. Share file saves that one genogram as a file: a colleague opens it with “Open a genogram file” on the home page, and PsychInterview can open it in its Family section. On an installed iPhone or iPad app the share sheet opens so you can save to Files or send it.'],
@@ -1144,8 +1158,8 @@
   ];
   TITLES.guide = 'How to use';
   VIEWS.guide = function () {
-    return '<div class="wrap page"><header class="page__head"><h1>How to use</h1><p>Short notes on each part of the app. The <a href="#/symbols">symbols page</a> shows what everything on the chart means.</p></header>' +
-      GUIDE.map(function (g, i) { return '<div class="row row--static"><span class="row__num">' + (i + 1) + '</span><span><h3>' + esc(g[0]) + '</h3><p>' + esc(g[1]) + '</p></span><span></span></div>'; }).join('') + '</div>';
+    return '<div class="wrap page"><header class="page__head"><h1>' + esc(tx('How to use')) + '</h1><p>' + txh('Short notes on each part of the app. The {link} shows what everything on the chart means.', { link: '<a href="#/symbols">' + esc(tx('symbols page')) + '</a>' }) + '</p></header>' +
+      GUIDE.map(function (g, i) { return '<div class="row row--static"><span class="row__num">' + (i + 1) + '</span><span><h3>' + esc(tx(g[0])) + '</h3><p>' + esc(tx(g[1])) + '</p></span><span></span></div>'; }).join('') + '</div>';
   };
 
   /* ---------- search: symbols, guide notes and saved genograms ---------- */
@@ -1163,7 +1177,7 @@
     return h.split('/').filter(Boolean).map(function (p) { try { return decodeURIComponent(p); } catch (e) { return p; } });
   }
   function titleFor(key) {
-    if (has(TITLES, key)) return TITLES[key];
+    if (has(TITLES, key)) return tx(TITLES[key]);
     if (has(SHELL_TITLES, key)) return t(SHELL_TITLES[key]);
     for (var i = 0; i < NAV.length; i++) if (NAV[i].href === '#/' + key) return navLabel(NAV[i]);
     return key;

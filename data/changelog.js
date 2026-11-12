@@ -4,6 +4,16 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.2.0',
+    date: '2026-11-12',
+    title: 'Great-grandparents, four partners and Tagalog',
+    items: [
+      { type: 'feature', text: 'Great-grandparents: add the grandparent first, then the great-grandfather or great-grandmother and choose whose parent they are.' },
+      { type: 'feature', text: 'Up to four partners for each person. The third and fourth are joined by a line that goes over the top, and their children hang from that line.' },
+      { type: 'feature', text: 'Tagalog: the forms, the guide and the symbols page now follow the language chosen under About. The chart itself stays in English. The Tagalog is a first draft.', href: '#/about' }
+    ]
+  },
+  {
     version: '1.1.0',
     date: '2026-11-12',
     title: 'More symbols, undo, zoom and a passcode lock',
