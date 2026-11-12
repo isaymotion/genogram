@@ -81,7 +81,7 @@ Both repos must be attached with push access (`add_repo`, access push).
 | PowerPoint slide check of new symbols | done, all draw correctly |
 | Her review of the Tagalog draft (everything since 1.2.0) | not done |
 | Her test on a real iPhone and iPad (especially “Move people” by finger) | not done |
-| Store publishing | ON HOLD by her (see below) |
+| Store publishing | NEXT, once she has done her two steps above (see below) |
 
 ## 7. Next steps
 - **She will say which new genogram features come next.** Ask; do not guess. Next Genogram version: 1.8.0. PsychInterview: current `CACHE` + 1.
@@ -90,7 +90,7 @@ Both repos must be attached with push access (`add_repo`, access push).
   - She has no Apple or Google developer account yet. Her steps: enroll in the Apple Developer Program as an individual (Apple Developer app), create a personal Google Play Console account, install Xcode on her MacBook Air, line up 12 Android testers for the 14-day closed test.
   - Two answers still needed: which country she enrols under (dual Filipino-American citizen, lives and works in the Philippines; advice given: use the country where she lives and can show matching ID, address, phone and card, and decide before paying), and whether `com.isaymotion.genogram` is fine as the permanent app ID.
   - Then ours: Capacitor wrapper with files bundled, Face ID lock and native share sheet (Apple guideline 4.2), Android target API 36, privacy policy page on GitHub Pages, TestFlight, closed test, listings, review.
-- Ideas not built: drag to rearrange people, in-laws beyond a sibling's partner, Tagalog on the chart itself, Tagalog search, linking this app from the other apps' menus.
+- Ideas not built: sexual orientation marks, moving people up or down (only sideways works), in-laws beyond a sibling's partner, Tagalog on the chart itself, Tagalog search, linking this app from the other apps' menus.
 
 ## 8. Pitfalls learned
 - 2026-11-13: the PsychInterview chat ran every test here on 1.4.0 / v37 from a fresh clone: all pass, both apps in step. PsychInterview's own `t_family.py` had to be updated for the 1.3.0 couple picker: when a shared change alters a PsychInterview form control, also run `bash tools/tests/run_all.sh` from its `dev-tools` branch (a blank line under a heading there means a test crashed).
