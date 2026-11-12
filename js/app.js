@@ -629,7 +629,7 @@
   function touch(c) { c.updated = new Date().toISOString(); saveSoon(); }
   function blankChart(title) {
     return { id: uid('c'), title: title || 'Family genogram', created: new Date().toISOString(), updated: new Date().toISOString(),
-      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptSubst: false, ptBond: '', ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, initials: false, household: false, ptBorn: '', ptDied: '', ptMed: false, notes: '', family: [], links: [] };
+      ptName: '', ptAge: '', ptSex: '', ptOcc: '', ptCond: '', ptFill: true, ptSubst: false, ptBond: '', ptDead: false, parentsRel: '', ptRel: '', byAge: true, showTitle: true, initials: false, household: false, ptBorn: '', ptDied: '', ptMed: false, ptGid: '', notes: '', family: [], links: [] };
   }
   function addChart(c) { DB.byId[c.id] = c; DB.order.unshift(c.id); saveNow(); rebuildIndex(); return c; }
   function removeChart(id) { delete DB.byId[id]; DB.order = DB.order.filter(function (x) { return x !== id; }); saveNow(); rebuildIndex(); }
@@ -771,7 +771,7 @@
   function toEngine(c) {
     var ini = !!c.initials, fam = !ini ? c.family : c.family.map(function (m) { if (!m || !m.name) return m; var o = {}; for (var k in m) if (has(m, k)) o[k] = m[k]; o.name = initialsOf(m.name); return o; });
     return { agesex: (c.ptAge || '') + ' / ' + (c.ptSex || ''), parentsRel: c.parentsRel, ptRel: c.ptRel, genoPtName: ini ? initialsOf(c.ptName) : c.ptName, genoPtOcc: c.ptOcc, genoPtCond: c.ptCond,
-      genoPtFill: c.ptFill !== false, genoPtSubst: !!c.ptSubst, genoPtBond: c.ptBond || '', genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, genoHousehold: !!c.household, genoPtBorn: c.ptBorn || '', genoPtDied: c.ptDead ? c.ptDied || '' : '', genoPtMed: !!c.ptMed, genoNotes: c.notes || '', family: fam, famLinks: c.links };
+      genoPtFill: c.ptFill !== false, genoPtSubst: !!c.ptSubst, genoPtBond: c.ptBond || '', genoPtDead: !!c.ptDead, genoByAge: c.byAge !== false, genoHousehold: !!c.household, genoPtBorn: c.ptBorn || '', genoPtDied: c.ptDead ? c.ptDied || '' : '', genoPtMed: !!c.ptMed, genoPtGid: c.ptGid || '', genoNotes: c.notes || '', genoPos: c.pos || null, family: fam, famLinks: c.links };
   }
   function chartTitleLine(c) { var d = new Date(); return (c.title || 'Family genogram') + ' (' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ')'; }
   function layoutOf(c, withTitle) { G.famIds(c); return G.layout(toEngine(c), withTitle && c.showTitle !== false ? { title: chartTitleLine(c) } : {}); }
@@ -894,6 +894,7 @@
         field(tx('Pregnancy or loss'), '<select ' + sc + ' data-k="preg">' + opt('', tx('No (a living or deceased person)'), m.preg) + opt('Pregnancy', tx('Current pregnancy'), m.preg) + G.FAM_PREG.slice(1).map(function (o) { return opt(o, tx(o), m.preg); }).join('') + '</select>', 'w2') + '</div>' : '') +
       '<div class="flds">' + field(tx('Occupation / role'), textIn(sc, 'occ', m.occ, tx('welder, sole earner')), 'w2') + field(tx('Condition / illness'), textIn(sc, 'cond', m.cond, 'MDD, hypertension'), 'w2') +
         field(tx('Number of people (if a group)'), textIn(sc, 'count', m.count, tx('Leave empty for one person'), ' inputmode="numeric"'), 'w2') +
+        field(tx('Gender identity'), '<select ' + sc + ' data-k="gid">' + opt('', tx('Same as the symbol'), m.gid) + G.FAM_GID.map(function (o) { return opt(o, tx(o), m.gid); }).join('') + '</select>', 'w2') +
         field(tx('Year of birth'), textIn(sc, 'born', m.born, '1958', ' inputmode="numeric" maxlength="10"'), 'w1') + field(tx('Year of death'), textIn(sc, 'died', m.died, '2020', ' inputmode="numeric" maxlength="10"'), 'w1') + '</div>' +
       '<p class="member__acts"><button type="button" class="link-btn" data-act="up" data-id="' + esc(m.id) + '">' + esc(tx('Move up')) + '</button><button type="button" class="link-btn" data-act="down" data-id="' + esc(m.id) + '">' + esc(tx('Move down')) + '</button><button type="button" class="link-btn danger" data-act="rm" data-id="' + esc(m.id) + '">' + esc(tx('Remove')) + '</button></p></div>';
   }
@@ -916,6 +917,7 @@
         '<div class="fld w2"><span>' + esc(tx('Sex')) + '</span>' + segBtns('data-c="1"', 'ptSex', [['Male', tx('Male')], ['Female', tx('Female')], ['', tx('Not stated')]], c.ptSex) + '</div></div>' +
       '<div class="flds">' + field(tx('Occupation / role'), textIn('data-c="1"', 'ptOcc', c.ptOcc, tx('BS ME graduate, unemployed')), 'w2') + field(tx('Condition / illness'), textIn('data-c="1"', 'ptCond', c.ptCond, 'schizophrenia; CKD 3b'), 'w2') +
         field(tx('Joined the family'), '<select data-c="1" data-k="ptBond">' + bondOptions(c.ptBond) + '</select>', 'w1') +
+        field(tx('Gender identity'), '<select data-c="1" data-k="ptGid">' + opt('', tx('Same as the symbol'), c.ptGid) + G.FAM_GID.map(function (o) { return opt(o, tx(o), c.ptGid); }).join('') + '</select>', 'w1') +
         field(tx('Year of birth'), textIn('data-c="1"', 'ptBorn', c.ptBorn, '1992', ' inputmode="numeric" maxlength="10"'), 'w1') + (c.ptDead ? field(tx('Year of death'), textIn('data-c="1"', 'ptDied', c.ptDied, '2020', ' inputmode="numeric" maxlength="10"'), 'w1') : '') + '</div>' +
       '<div class="chips">' + chip('data-c="1"', 'ptFill', c.ptFill !== false, tx('Psychiatric disorder')) + chip('data-c="1"', 'ptSubst', c.ptSubst, tx('Substance use disorder')) + chip('data-c="1"', 'ptMed', c.ptMed, tx('Medical illness')) + chip('data-c="1"', 'ptDead', c.ptDead, tx('Deceased')) + '</div></section>';
     html += '<section class="quick"><h2 class="quick__h">' + esc(tx('Add a family member')) + '</h2><div class="quick__chips">' + QUICK.map(function (r) { var g = groupOf({ rel: r });
@@ -953,7 +955,10 @@
     viewNodes = L ? L.nodes : null;
     if (!L) return '<div class="empty"><h2>' + esc(tx('Nothing to draw yet')) + '</h2><p>' + esc(tx('Add at least one family member and the genogram appears here.')) + '</p><p><a class="btn btn--solid" href="#/chart/' + esc(c.id) + '">' + esc(tx('Add the family')) + '</a></p></div>';
     return '<div class="viewbar"><div class="segb" role="group" aria-label="' + esc(tx('Zoom')) + '"><button type="button" data-act="zoomout" aria-label="' + esc(tx('Zoom out')) + '">−</button><button type="button" data-act="zoomfit">' + esc(tx('Fit')) + '</button><button type="button" data-act="zoomin" aria-label="' + esc(tx('Zoom in')) + '">+</button></div>' +
-        chip('data-c="1"', 'showTitle', c.showTitle !== false, tx('Show the title and date')) + chip('data-c="1"', 'initials', c.initials, tx('Initials only')) + chip('data-c="1"', 'household', c.household, tx('Outline the household')) + '</div>' +
+        chip('data-c="1"', 'showTitle', c.showTitle !== false, tx('Show the title and date')) + chip('data-c="1"', 'initials', c.initials, tx('Initials only')) + chip('data-c="1"', 'household', c.household, tx('Outline the household')) +
+        '<button type="button" class="filter" data-act="movemode" aria-pressed="' + (moveMode ? 'true' : 'false') + '">' + esc(tx('Move people')) + '</button>' +
+        (c.pos && Object.keys(c.pos).length ? '<button type="button" class="link-btn" data-act="resetpos">' + esc(tx('Reset positions')) + '</button>' : '') + '</div>' +
+      (moveMode ? '<p class="hint" id="move-hint">' + esc(tx('Drag a person left or right. The lines follow. Turn “Move people” off when you are done.')) + '</p>' : '') +
       '<div class="canvas canvas--pz" id="canvas"><div class="canvas__in" id="canvas-in">' + G.svg(L, VIEW_UNIT) + '</div></div>' +
       '<p class="hint">' + esc(tx('Tap a person to edit them. Pinch, or use + and −, to zoom, then drag to move around.')) + '</p>' +
       '<label class="fld notesfld"><span>' + esc(tx('Notes under the genogram')) + '</span><textarea data-c="1" data-k="notes" rows="3" maxlength="600" placeholder="' + esc(tx('Informant, who drew it, a short summary of the family')) + '">' + esc(c.notes || '') + '</textarea></label>' +
@@ -1065,6 +1070,8 @@
     if (act === 'addl') { snap(c); c.links.push({ a: 'pt', type: '', b: '' }); touch(c); rerender(); return; }
     if (act === 'rml') { snap(c); c.links.splice(+b.getAttribute('data-i'), 1); touch(c); rerender(); return; }
     if (act === 'zoomin' || act === 'zoomout' || act === 'zoomfit') { pzButton(act); return; }
+    if (act === 'movemode') { moveMode = !moveMode; rerender(); return; }
+    if (act === 'resetpos' && c) { snap(c); c.pos = {}; touch(c); rerender(); return; }
     if (act === 'png' || act === 'pdf') { exportChart(c, act); return; }
     if (act === 'sharefile') { shareChart(c); return; }
   });
@@ -1117,11 +1124,12 @@
     var payload = { app: 'genogram', kind: 'chart', format: 1, exported: new Date().toISOString(), attribution: ATTRIBUTION, chart: c };
     deliver(JSON.stringify(payload, null, 1), fileBase(c) + '.genogram.json', 'application/json', txf('File saved: {file}', { file: fileBase(c) + '.genogram.json' }));
   }
-  var TEXT_KEYS = ['name', 'rel', 'age', 'sex', 'status', 'occ', 'cond', 'count', 'of', 'relStatus', 'bond', 'preg', 'desc', 'born', 'died'], FLAG_KEYS = ['psych', 'subst', 'withPt', 'twin', 'med'];
+  var TEXT_KEYS = ['name', 'rel', 'age', 'sex', 'status', 'occ', 'cond', 'count', 'of', 'relStatus', 'bond', 'preg', 'desc', 'born', 'died', 'gid'], FLAG_KEYS = ['psych', 'subst', 'withPt', 'twin', 'med'];
   function cleanChart(src) {   // only the fields this app knows, as plain text and yes/no values
     var c = blankChart('Family genogram'), txt = function (v) { return String(v == null ? '' : v).slice(0, 300); };
-    ['title', 'ptName', 'ptAge', 'ptSex', 'ptOcc', 'ptCond', 'ptBond', 'parentsRel', 'ptRel', 'ptBorn', 'ptDied'].forEach(function (k) { if (src[k] != null) c[k] = txt(src[k]); });
+    ['title', 'ptName', 'ptAge', 'ptSex', 'ptOcc', 'ptCond', 'ptBond', 'parentsRel', 'ptRel', 'ptBorn', 'ptDied', 'ptGid'].forEach(function (k) { if (src[k] != null) c[k] = txt(src[k]); });
     if (src.notes != null) c.notes = String(src.notes).slice(0, 600);
+    if (src.pos && typeof src.pos === 'object') { c.pos = {}; Object.keys(src.pos).slice(0, 200).forEach(function (k) { var v = +src.pos[k]; if (/^[\w-]{1,24}$/.test(k) && isFinite(v) && v) c.pos[k] = Math.max(-12, Math.min(12, v)); }); }
     ['ptSubst', 'ptDead', 'initials', 'ptMed'].forEach(function (k) { c[k] = !!src[k]; });
     ['ptFill', 'byAge', 'showTitle'].forEach(function (k) { c[k] = src[k] !== false; }); c.household = !!src.household;
     var ids = {};
@@ -1149,6 +1157,7 @@
 
   /* ---------- The chart on screen: pinch or + / − to zoom, drag to move, tap a person to edit ---------- */
   var pz = null;   // { cv, inner, w, h, fit, s, tx, ty }
+  var moveMode = false, drag = null;   // “Move people”: dragging a symbol shifts that person sideways (chart.pos)
   var VIEW_UNIT = 56, viewNodes = null;   // pixels per symbol width on screen before zooming; the people on the chart being shown
   function pzApply() {
     var W = pz.cv.clientWidth, H = pz.cv.clientHeight, sw = pz.w * pz.s, sh = pz.h * pz.s;
@@ -1156,7 +1165,7 @@
     pz.ty = sh <= H ? (H - sh) / 2 : Math.min(0, Math.max(H - sh, pz.ty));
     pz.inner.style.transform = 'translate(' + pz.tx.toFixed(1) + 'px,' + pz.ty.toFixed(1) + 'px) scale(' + pz.s.toFixed(4) + ')';
     var zoomed = pz.s > pz.fit * 1.01;
-    pz.cv.style.touchAction = zoomed ? 'none' : 'pan-y';   // at "fit" a finger still scrolls the page
+    pz.cv.style.touchAction = zoomed || moveMode ? 'none' : 'pan-y';   // at "fit" a finger still scrolls the page
     pz.cv.classList.toggle('is-zoomed', zoomed);
   }
   function pzZoom(k, cx, cy) {   // zoom by k around a point inside the box
@@ -1181,13 +1190,23 @@
   function pzCount() { return Object.keys(pzPts).length; }
   function pzDown(e) {
     if (!pz || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    if (!pzCount()) { pzMoved = false; pzT0 = Date.now(); }
+    if (!pzCount()) { pzMoved = false; pzT0 = Date.now(); drag = null;
+      if (moveMode) { var hid = pzHit(e), hc = curChart(); if (hid && hc) drag = { id: hid, x0: e.clientX, base: (hc.pos && +hc.pos[hid]) || 0, snapped: false }; } }
     pzPts[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (pzCount() === 2) { var k = Object.keys(pzPts), a = pzPts[k[0]], b = pzPts[k[1]]; pzDist = Math.hypot(a.x - b.x, a.y - b.y) || 1; pzMoved = true; }
   }
   window.addEventListener('pointermove', function (e) {
     var p = pzPts[e.pointerId]; if (!pz || !p) return;
     var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    if (drag && pzCount() === 1) {   // moving a person: redraw the chart with that person shifted
+      var dc = curChart(), du = (e.clientX - drag.x0) / pz.s / VIEW_UNIT; if (!dc) return;
+      if (Math.abs(du) < 0.08 && !drag.snapped) return;
+      if (!drag.snapped) { snap(dc); drag.snapped = true; } pzMoved = true;
+      dc.pos = dc.pos || {}; dc.pos[drag.id] = Math.max(-12, Math.min(12, Math.round((drag.base + du) * 20) / 20)); if (!dc.pos[drag.id]) delete dc.pos[drag.id];
+      var dL = null; try { dL = layoutOf(dc, true); } catch (err) { dL = null; }
+      if (dL) { viewNodes = dL.nodes; pz.inner.innerHTML = G.svg(dL, VIEW_UNIT); pz.w = dL.w * VIEW_UNIT; pz.h = dL.h * VIEW_UNIT; pzApply(); }
+      return;
+    }
     if (pzCount() === 1) {
       if (Math.abs(dx) + Math.abs(dy) > 6) pzMoved = true;
       if (pzMoved && pz.s > pz.fit * 1.01) { pz.tx += dx; pz.ty += dy; p.x = e.clientX; p.y = e.clientY; pzApply(); }
@@ -1197,15 +1216,21 @@
       pzZoom(d / pzDist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top); pzDist = d;
     }
   });
+  function pzHit(e) {   // the person under the pointer, from the layout (in chart units)
+    var r = pz.cv.getBoundingClientRect(), ux = (e.clientX - r.left - pz.tx) / pz.s / VIEW_UNIT, uy = (e.clientY - r.top - pz.ty) / pz.s / VIEW_UNIT, id = null;
+    (viewNodes || []).forEach(function (n) { if (!n.ghost && ux >= n.x - 0.12 && ux <= n.x + 1.12 && uy >= n.y - 0.12 && uy <= n.y + 1.12 + (n.side ? 0 : Math.min(0.7, n.lab.h))) id = n.id; });
+    return id;
+  }
   function pzUp(e) {
     if (!pzPts[e.pointerId]) return;
     delete pzPts[e.pointerId];
+    if (drag && drag.snapped) { drag = null; var mc = curChart(); if (mc) touch(mc); rerender(); return; }
+    drag = null;
     if (e.type !== 'pointerup' || pzCount() || pzMoved || Date.now() - pzT0 > 600 || !pz) return;
     var c = curChart(), r = pz.cv.getBoundingClientRect(); if (!c || !document.body.contains(pz.cv)) return;
     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
     // which person is under the finger: the symbol and the first lines of the label under it (in chart units)
-    var ux = (e.clientX - r.left - pz.tx) / pz.s / VIEW_UNIT, uy = (e.clientY - r.top - pz.ty) / pz.s / VIEW_UNIT, id = null;
-    (viewNodes || []).forEach(function (n) { if (!n.ghost && ux >= n.x - 0.12 && ux <= n.x + 1.12 && uy >= n.y - 0.12 && uy <= n.y + 1.12 + (n.side ? 0 : Math.min(0.7, n.lab.h))) id = n.id; });
+    var id = pzHit(e);
     if (!id || (id !== 'pt' && !memberById(c, id))) return;
     focusMember = id; if (id !== 'pt') openMember = id;
     location.hash = '#/chart/' + c.id;
@@ -1244,6 +1269,9 @@
       ['Substance use disorder', 'The lower half is dark. It can be combined with the shading for a psychiatric disorder.', symPrims({ sex: 'M', subst: true })],
       ['Medical illness', 'A small bold cross beside the symbol. Write the illness in “Condition / illness”.', [{ t: 'shape', g: 'rect', x: 0.3, y: 0.1, w: 0.8, h: 0.8, fill: 'FFFFFF', c: G.INK, sw: 0.045 }, { t: 'line', x1: 0.14, y1: 0.72, x2: 0.14, y2: 0.96, c: G.INK, w: 0.07 }, { t: 'line', x1: 0.02, y1: 0.84, x2: 0.26, y2: 0.84, c: G.INK, w: 0.07 }]],
       ['Both', 'Shaded, with a dark lower half.', symPrims({ sex: 'F', fill: true, subst: true })],
+      ['Transgender', 'The symbol follows the person’s gender identity; a small symbol beside it shows the sex assigned at birth. Choose it under “Gender identity”.', [{ t: 'shape', g: 'rect', x: 0.15, y: 0.1, w: 0.8, h: 0.8, fill: 'FFFFFF', c: G.INK, sw: 0.045 }, { t: 'shape', g: 'ellipse', x: 0.92, y: 0.7, w: 0.24, h: 0.24, fill: 'FFFFFF', c: G.INK, sw: 0.035 }]],
+      ['Non-binary', 'A small diamond beside the symbol.', [{ t: 'shape', g: 'rect', x: 0.15, y: 0.1, w: 0.8, h: 0.8, fill: 'FFFFFF', c: G.INK, sw: 0.045 }, { t: 'shape', g: 'diamond', x: 0.92, y: 0.7, w: 0.24, h: 0.24, fill: 'FFFFFF', c: G.INK, sw: 0.035 }]],
+      ['Pet', 'A small rounded square, in a row under the family with other relatives and household members who are not related. Join it to someone with a relationship line.', [{ t: 'shape', g: 'rect', r: 0.2, x: 0.3, y: 0.25, w: 0.6, h: 0.6, fill: 'FFFFFF', c: G.INK, sw: 0.045 }]],
       ['Several people in one symbol', '×n inside the symbol, from “Number of people”: 5 former partners, 7 children.', symPrims({ sex: 'U', text: '×7' })],
       ['Parent not listed', 'Dashed symbol with a question mark, drawn for half-siblings when the other parent was not added.', symPrims({ sex: 'U', ghost: true, text: '?' })],
       ['Household', 'With “Outline the household” turned on above the chart, a dashed blue outline is drawn around the index person and everyone who lives with them, instead of the small houses.', [{ t: 'shape', g: 'rect', r: 0.12, x: 0.12, y: 0.22, w: 0.96, h: 0.78, fill: '', c: G.BLUE, sw: 0.04, dash: true }]],
@@ -1308,6 +1336,9 @@
     ['Children with different partners', 'Add each partner first (Husband, Wife, Partner, Former partner). Then open the child and choose the other parent. Leave it on the first choice and the child goes with the current spouse or partner.'],
     ['Couples: married, engaged, living together, dating', 'Open a spouse, partner or former partner and choose “Couple’s relationship”. The list is grouped: Married (separated, legal separation, divorce, nullity, widowed), Engaged, Living together, Not living together (committed, casual, temporary, love affair) and Other. Married couples are joined by a dark line; couples who are not married by a blue line. A small house on the line means they live together, and a slash means they have separated. Symbols and lines shows every one.'],
     ['Years, medical illness and notes', 'Each person has a year of birth and a year of death; they show under the name as 1950–2020. The age of someone who died is written over the cross. “Medical illness” adds a small cross beside the symbol. Under the chart, “Notes under the genogram” is for the informant, who drew it and a short summary; it is printed below the key.'],
+    ['Moving people by hand', 'The chart places everyone automatically. To adjust it, turn on “Move people” above the chart and drag a person left or right; the lines follow. “Reset positions” puts everyone back. Undo also works.'],
+    ['Same-sex couples', 'Add the partner as Husband, Wife or Partner as usual. For “Partner” and “Former partner”, choose the sex in their card. The couple’s line and their children are drawn the same way.'],
+    ['Others in the household, and pets', '“Other relative”, “Household member (not related)” and “Pet” are drawn in a row of their own under the family. They are not joined to anyone unless you add a relationship line in step 2, for example Caregiver of or Close.'],
     ['Step-parents and half-siblings', 'A stepfather is drawn beside the mother, a stepmother beside the father. A paternal half-sibling hangs between the father and the stepmother; if no stepmother was added, a dashed “?” parent is drawn.'],
     ['Great-grandparents', 'Add the grandparent first, then the great-grandfather or great-grandmother, and choose whose parent they are. Each grandparent has room for two parents.'],
     ['Cousins', 'Add the aunt or uncle first, then add the cousin and choose whose child they are. Paternal cousins are drawn on the left, maternal cousins on the right.'],

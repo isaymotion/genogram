@@ -4,6 +4,17 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.7.0',
+    date: '2026-11-13',
+    title: "Move people by hand, gender identity, pets and others in the household",
+    items: [
+      { type: 'feature', text: "Move people: turn it on above the chart and drag a person left or right; the lines follow. “Reset positions” puts everyone back." },
+      { type: 'feature', text: "Gender identity: Transgender or Non-binary for any person. The symbol follows the identity, with a small symbol beside it." },
+      { type: 'feature', text: "Pets, other relatives and household members who are not related are now drawn, in a row of their own under the family. Join them to someone with a relationship line." },
+      { type: 'content', text: "The guide has new notes on same-sex couples, moving people, and others in the household." }
+    ]
+  },
+  {
     version: '1.6.0',
     date: '2026-11-13',
     title: "Years, medical illness, notes, a welcome and a privacy page",

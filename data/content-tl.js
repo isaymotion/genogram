@@ -443,5 +443,23 @@ window.CONTENT_TL = {
   "Removing your data": "Pag-alis ng iyong data",
   "Delete a genogram from the home screen, or clear this site’s data in the browser settings to remove everything. Because nothing is kept anywhere else, deleted genograms cannot be recovered without a backup file.": "Burahin ang isang genogram mula sa home screen, o i-clear ang data ng site na ito sa settings ng browser para alisin ang lahat. Dahil walang nakatago sa ibang lugar, hindi na maibabalik ang nabura nang genogram kung walang backup file.",
   "Questions": "Mga tanong",
-  "Write to isaymotion@gmail.com.": "Sumulat sa isaymotion@gmail.com."
+  "Write to isaymotion@gmail.com.": "Sumulat sa isaymotion@gmail.com.",
+  /* 1.7.0: moving people, gender identity, pets and others (draft) */
+  "Gender identity": "Pagkakakilanlang pangkasarian",
+  "Same as the symbol": "Katulad ng simbolo",
+  "Move people": "Ilipat ang mga tao",
+  "Reset positions": "Ibalik ang mga posisyon",
+  "Drag a person left or right. The lines follow. Turn “Move people” off when you are done.": "I-drag ang tao pakaliwa o pakanan. Susunod ang mga linya. I-off ang “Ilipat ang mga tao” kapag tapos ka na.",
+  "Transgender": "Transgender",
+  "The symbol follows the person’s gender identity; a small symbol beside it shows the sex assigned at birth. Choose it under “Gender identity”.": "Sumusunod ang simbolo sa pagkakakilanlang pangkasarian ng tao; ipinapakita ng maliit na simbolo sa tabi nito ang kasariang itinakda sa kapanganakan. Piliin ito sa “Pagkakakilanlang pangkasarian”.",
+  "Non-binary": "Non-binary",
+  "A small diamond beside the symbol.": "Maliit na diyamante sa tabi ng simbolo.",
+  "Pet": "Alagang hayop",
+  "A small rounded square, in a row under the family with other relatives and household members who are not related. Join it to someone with a relationship line.": "Maliit na parisukat na bilugan ang kanto, nasa hanay sa ilalim ng pamilya kasama ng ibang kamag-anak at mga kasambahay na hindi kamag-anak. Idugtong ito sa isang tao gamit ang linya ng ugnayan.",
+  "Moving people by hand": "Paglilipat ng mga tao nang mano-mano",
+  "The chart places everyone automatically. To adjust it, turn on “Move people” above the chart and drag a person left or right; the lines follow. “Reset positions” puts everyone back. Undo also works.": "Awtomatikong inilalagay ng chart ang lahat. Para ayusin ito, i-on ang “Ilipat ang mga tao” sa itaas ng chart at i-drag ang tao pakaliwa o pakanan; susunod ang mga linya. Ibinabalik ng “Ibalik ang mga posisyon” ang lahat. Gumagana rin ang Undo.",
+  "Same-sex couples": "Magkaparehang magkapareho ang kasarian",
+  "Add the partner as Husband, Wife or Partner as usual. For “Partner” and “Former partner”, choose the sex in their card. The couple’s line and their children are drawn the same way.": "Idagdag ang kapareha bilang Asawa (lalaki), Asawa (babae) o Kapareha gaya ng dati. Para sa “Kapareha” at “Dating kapareha”, piliin ang kasarian sa kanilang card. Pareho ang pagguhit ng linya ng magkapareha at ng kanilang mga anak.",
+  "Others in the household, and pets": "Iba pang kasama sa bahay, at mga alagang hayop",
+  "“Other relative”, “Household member (not related)” and “Pet” are drawn in a row of their own under the family. They are not joined to anyone unless you add a relationship line in step 2, for example Caregiver of or Close.": "Ang “Ibang kamag-anak”, “Kasama sa bahay (hindi kamag-anak)” at “Alagang hayop” ay iginuguhit sa sariling hanay sa ilalim ng pamilya. Hindi sila nakadugtong kaninuman maliban kung magdagdag ka ng linya ng ugnayan sa hakbang 2, halimbawa Tagapag-alaga ni o Malapit."
 };
