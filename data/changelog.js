@@ -4,6 +4,14 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.0.1',
+    date: '2026-11-12',
+    title: 'Clearer wording',
+    items: [
+      { type: 'update', text: '“How many” is now “Number of people (if a group)”, with a note to leave it empty for one person.' }
+    ]
+  },
+  {
     version: '1.0.0',
     date: '2026-11-12',
     title: 'First release',
