@@ -672,7 +672,7 @@
         chip(sc, 'psych', m.psych, 'Psychiatric or substance use disorder') + chip(sc, 'withPt', m.withPt, 'Lives with the index person') +
         (G.FAM_TWIN_ROLES.indexOf(r) >= 0 ? chip(sc, 'twin', m.twin, 'Twin') : '') + '</div>' +
       '<div class="flds">' + field('Occupation / role', textIn(sc, 'occ', m.occ, 'welder, sole earner'), 'w2') + field('Condition / illness', textIn(sc, 'cond', m.cond, 'MDD, hypertension'), 'w2') +
-        field('How many', textIn(sc, 'count', m.count, '1', ' inputmode="numeric"'), 'w1') + '</div>' +
+        field('Number of people (if a group)', textIn(sc, 'count', m.count, 'Leave empty for one person', ' inputmode="numeric"'), 'w2') + '</div>' +
       '<p class="member__acts"><button type="button" class="link-btn" data-act="up" data-id="' + esc(m.id) + '">Move up</button><button type="button" class="link-btn" data-act="down" data-id="' + esc(m.id) + '">Move down</button><button type="button" class="link-btn danger" data-act="rm" data-id="' + esc(m.id) + '">Remove</button></p></div>';
   }
   function memberRow(c, m, i) {
@@ -695,7 +695,7 @@
     html += '<section class="quick"><h2 class="quick__h">Add a family member</h2><div class="quick__chips">' + QUICK.map(function (r) { var g = groupOf({ rel: r });
         return '<button type="button" class="qchip" style="--c:' + g.c + '" data-act="add" data-rel="' + esc(r) + '">+ ' + esc(r) + '</button>'; }).join('') +
       '<button type="button" class="qchip qchip--more" data-act="add" data-rel="">+ Someone else…</button></div>' +
-      '<p class="hint">Initials are enough. “How many” lets one symbol stand for several people, such as 5 former partners or 7 children.</p></section>';
+      '<p class="hint">Initials are enough. “Number of people” is only for a group: type 5 and one symbol stands for 5 former partners. Leave it empty for one person.</p></section>';
     if (hasBoth || hasSp) html += '<section class="card couple">' +
       (hasBoth ? '<div class="fld"><span>Parents’ relationship</span>' + segBtns('data-c="1"', 'parentsRel', coupleOpts, c.parentsRel === 'Married' ? '' : c.parentsRel) + '</div>' : '') +
       (hasSp ? '<div class="fld"><span>Index person and current spouse / partner</span>' + segBtns('data-c="1"', 'ptRel', coupleOpts, c.ptRel === 'Married' ? '' : c.ptRel) + '</div>' : '') + '</section>';
@@ -728,7 +728,7 @@
     return '<div class="viewbar"><div class="segb" role="group" aria-label="Size">' + [['fit', 'Fit to screen'], ['big', 'Larger']].map(function (o) { return '<button type="button" data-act="zoom" data-v="' + o[0] + '" aria-pressed="' + (zoom === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
         chip('data-c="1"', 'showTitle', c.showTitle !== false, 'Show the title and date') + '</div>' +
       '<div class="canvas' + (zoom === 'big' ? ' canvas--big' : '') + '" id="canvas">' + G.svg(L, zoom === 'big' ? 78 : 56) + '</div>' +
-      (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">Not drawn</p>' + esc(L.left.join(', ')) + '. A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for two partners: put several former partners in one symbol with “How many”.</div>' : '') +
+      (L.left.length ? '<div class="callout callout--caution"><p class="callout__title">Not drawn</p>' + esc(L.left.join(', ')) + '. A relative is drawn when the person who links them to the index person is on the chart (for example the father for paternal relatives) and chosen in their card. Each person has room for two partners: put several former partners in one symbol with “Number of people”.</div>' : '') +
       (L.linksLeft.length ? '<div class="callout callout--caution"><p class="callout__title">Lines not drawn</p>' + esc(L.linksLeft.join('; ')) + '. One of the two people is not on the chart.</div>' : '') +
       '<p class="hint">The key lists only what this genogram uses. See <a href="#/symbols">Symbols and lines</a> for everything the app can draw.</p>';
   }
@@ -852,7 +852,7 @@
     { h: 'Status and marks', c: '#D4502A', rows: [
       ['Living', 'Empty symbol.', symPrims({ sex: 'M' })], ['Deceased', 'An X through the symbol.', symPrims({ sex: 'F', dead: true })],
       ['Psychiatric or substance use disorder', 'Shaded symbol. Write the condition in “Condition / illness” so it shows under the name.', symPrims({ sex: 'M', fill: true })],
-      ['Several people in one symbol', '×n inside the symbol, from “How many”: 5 former partners, 7 children.', symPrims({ sex: 'U', text: '×7' })],
+      ['Several people in one symbol', '×n inside the symbol, from “Number of people”: 5 former partners, 7 children.', symPrims({ sex: 'U', text: '×7' })],
       ['Parent not listed', 'Dashed symbol with a question mark, drawn for half-siblings when the other parent was not added.', symPrims({ sex: 'U', ghost: true, text: '?' })],
       ['Lives with the index person', 'A small house beside the symbol.', [{ t: 'poly', pts: [[0.25, 0.62], [0.6, 0.3], [0.95, 0.62], [0.95, 0.98], [0.25, 0.98]], c: G.SLATE, w: 0.03, fill: G.SLATE, close: true }]]] },
     { h: 'Couples and children', c: '#C2337A', rows: [
@@ -883,7 +883,7 @@
     ['Oldest to youngest', 'Brothers, sisters and children are placed by age, oldest on the left, whatever order you typed them in. Ages such as “8 mo” or “1 y 6 mo” are understood. For people of the same age, use Move up and Move down; for twins, turn on Twin for each of them.'],
     ['Children with different partners', 'Add each partner first (Husband, Wife, Partner, Former partner). Then open the child and choose the other parent. Leave it on the first choice and the child goes with the current spouse or partner.'],
     ['Step-parents and half-siblings', 'A stepfather is drawn beside the mother, a stepmother beside the father. A paternal half-sibling hangs between the father and the stepmother; if no stepmother was added, a dashed “?” parent is drawn.'],
-    ['Many people in one symbol', 'Type a number in “How many” to let one symbol stand for several people, such as 5 former partners or 7 children. Each person has room for two partners on the chart, so this is the way to show more.'],
+    ['Many people in one symbol', 'Type a number in “Number of people” to let one symbol stand for several people, such as 5 former partners or 7 children. Each person has room for two partners on the chart, so this is the way to show more.'],
     ['Relationship lines', 'In step 2, pick two people and how they relate. Lines between generations start under the older person’s label so they do not run through the words.'],
     ['Save and share', 'In step 3, Save picture makes a PNG and Save PDF makes a one-page A4 PDF. On an installed iPhone or iPad app the share sheet opens so you can save to Files or send it.'],
     ['Privacy', 'Everything stays on this device. Nothing is sent to a server. Use initials or an alias, and use Export backup in the footer to move your genograms to another device.']
