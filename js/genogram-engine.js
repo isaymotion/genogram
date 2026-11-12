@@ -64,6 +64,8 @@ function famCoupleOptions(cur, blank, tr){
   return one('', blank) + FAM_COUPLE_GROUPS.map(g=>`<optgroup label="${e(t(g.h))}">${g.o.map(o=>one(o, t(o))).join('')}</optgroup>`).join('') +
     (FAM_COUPLE_OLD.includes(c) ? `<optgroup label="${e(t('Older symbol'))}">${one(c, t(c))}</optgroup>` : '');
 }
+/* Years of birth and death as shown under a name: 1950–2020, b. 1950, d. 2020 */
+function genoYears(b, d){ b=str(b); d=str(d); return b && d ? b+'–'+d : b ? 'b. '+b : d ? 'd. '+d : ''; }
 /* The line pattern of a couple's line or of the line down to a child, as an SVG dash list (u: pixels per unit, w: line width in units) */
 function genoDash(d, w, u){
   const f = a => a.map(v=>(v*u).toFixed(1)).join(' ');
@@ -123,7 +125,7 @@ function famSorted(d){
 /* One family member as a line of text: "AA (Father, 58): description" */
 function memberLine(m){
   const n = famCount(m);
-  const bits = [str(m.rel), n && n+' people', str(m.age) && (/^\d+$/.test(str(m.age)) ? str(m.age)+' y/o' : str(m.age)), str(m.occ), famBond(m) && (famBond(m)==='Foster' ? 'foster child' : 'adopted'), famPreg(m) && (famPreg(m)==='Pregnancy' ? 'current pregnancy' : lc(famPreg(m))), m.status==='Deceased' && !famPreg(m) && 'deceased',
+  const bits = [str(m.rel), n && n+' people', str(m.age) && (/^\d+$/.test(str(m.age)) ? str(m.age)+' y/o' : str(m.age)), str(m.occ), famBond(m) && (famBond(m)==='Foster' ? 'foster child' : 'adopted'), famPreg(m) && (famPreg(m)==='Pregnancy' ? 'current pregnancy' : lc(famPreg(m))), str(m.born) && 'born '+str(m.born), m.status==='Deceased' && !famPreg(m) && (str(m.died) ? 'died '+str(m.died) : 'deceased'), m.med && 'medical illness',
     (m.psych||m.subst) && [m.psych && 'psychiatric condition', m.subst && 'substance use'].filter(Boolean).join(' and ')+(str(m.cond)?': '+str(m.cond):''), !m.psych && !m.subst && str(m.cond)].filter(Boolean);
   return (str(m.name)||'(no name)') + (bits.length ? ' ('+bits.join(', ')+')' : '') + (str(m.desc) ? ' — '+str(m.desc) : '');
 }
@@ -232,13 +234,13 @@ function genogramLayout(d, opts){
   const left = [];
   const mk = o => { const m=o.m, ri=relInfo(m.rel);
     const preg = famPreg(m);
-    return { id:o.id, m, role:ri.role, sex:memberSex(m), dead:preg ? preg==='Stillbirth' : m.status==='Deceased', fill:!preg && !!m.psych, subst:!preg && !!m.subst, bond:famBond(m), preg, pt:false, count:famCount(m), home:!preg && !!m.withPt, twin:!!m.twin,
+    return { id:o.id, m, role:ri.role, sex:memberSex(m), dead:preg ? preg==='Stillbirth' : m.status==='Deceased', fill:!preg && !!m.psych, subst:!preg && !!m.subst, bond:famBond(m), preg, pt:false, count:famCount(m), home:!preg && !!m.withPt, med:!preg && !!m.med, yrs:preg ? '' : genoYears(m.born, m.died), twin:!!m.twin,
       age:genoAgeText(m.age), ageY:ageYears(m.age), name:str(m.name), cond:str(m.cond), relText:preg || ri.short || str(m.rel), x:0, y:0, gen:0, side:'', partners:[], kids:{} }; };
   const all = src.map(mk), by = role => all.filter(n=>n.role===role);
   const nameOf = n => n.name || n.relText || 'family member';
   const drop = (n, why) => { left.push(nameOf(n)); n.out=true; };
   const pAge = splitAgeSex(d.agesex).age||'';
-  const P = { id:'pt', role:'pt', sex:patientSexOf(d), dead:!!d.genoPtDead, fill:d.genoPtFill!==false, subst:!!d.genoPtSubst, bond:FAM_BOND.includes(d.genoPtBond) ? d.genoPtBond : '', preg:'', pt:true, count:0, home:false, twin:false, age:genoAgeText(pAge), ageY:ageYears(pAge),
+  const P = { id:'pt', role:'pt', sex:patientSexOf(d), dead:!!d.genoPtDead, fill:d.genoPtFill!==false, subst:!!d.genoPtSubst, bond:FAM_BOND.includes(d.genoPtBond) ? d.genoPtBond : '', preg:'', pt:true, count:0, home:false, med:!!d.genoPtMed, yrs:genoYears(d.genoPtBorn, d.genoPtDied), twin:false, age:genoAgeText(pAge), ageY:ageYears(pAge),
     name:str(d.genoPtName)||'Patient', cond:str(d.genoPtCond), relText:'Index patient', x:0, y:0, gen:0, side:'', partners:[], kids:{} };
   const order = arr => d.genoByAge===false ? arr : famByAge(arr, n=>n.ageY);
   const couples = [], fams = [];
@@ -291,7 +293,7 @@ function genogramLayout(d, opts){
     if(n.count) rel = n.count+' '+lc(genoPlural(n.role==='sibsp'||n.role==='chsp' ? 'Partner' : n.relText));
     const occ = n.pt ? str(d.genoPtOcc) : str(n.m.occ);
     const bold = n.name || (rel.charAt(0).toUpperCase()+rel.slice(1));
-    n.lab = mkLabel(bold, [[n.name ? rel : '', occ].filter(Boolean).join(' · '), n.cond]);
+    n.lab = mkLabel(bold, [[n.name ? rel : '', occ].filter(Boolean).join(' · '), n.yrs, n.cond]);
     n.inner = n.preg && n.preg!=='Pregnancy' ? '' : n.count ? '×'+n.count : n.age;
     n.sh = n.preg==='Pregnancy' ? 0.8*S : n.preg==='Stillbirth' ? 0.62*S : n.preg ? 0.34*S : S;   // pregnancies and losses use smaller symbols
   });
@@ -523,9 +525,12 @@ function genogramLayout(d, opts){
         prims.push({ t:'shape', g:'rect', r:0.05*k, x:x+s/2-pw/2, y:py, w:pw, h:ph, fill:pf, c:pf, sw:0.01, name:'Age', text:{ t:String(n.inner), fs, b:true, c:n.subst || n.fill ? 'FFFFFF' : INK } }); } }
   };
   const house = (x, y, k) => prims.push({ t:'poly', pts:[[x,y+0.11*k],[x+0.13*k,y],[x+0.26*k,y+0.11*k],[x+0.26*k,y+0.24*k],[x,y+0.24*k]], c:GENO_SLATE, w:0.02*k, fill:GENO_SLATE, close:true });
+  // medical illness: a small bold cross beside the symbol
+  const medMark = (x, y, k) => { [[x+0.1*k, y, x+0.1*k, y+0.2*k],[x, y+0.1*k, x+0.2*k, y+0.1*k]].forEach(q=>prims.push({ t:'line', x1:q[0], y1:q[1], x2:q[2], y2:q[3], c:INK, w:0.065*k })); };
   nodes.forEach(n=>{
     symbol(n, cx(n)-n.sh/2, n.y, n.sh, nameOf(n));
     if(n.home && !household) house(n.x+S-0.04, n.y-0.2, 1);
+    if(n.med) medMark(n.side==='L' ? n.x+S+0.04 : n.x-0.24, n.y+S-0.2, 1);
     if(!n.lab.lines.length) return;
     if(n.side==='R') prims.push({ t:'text', a:'s', x:n.x+S+0.2, y:n.y+S/2-n.lab.h/2, w:n.lab.w, h:n.lab.h, lines:n.lab.lines });
     else if(n.side==='L') prims.push({ t:'text', a:'e', x:n.x-0.2, y:n.y+S/2-n.lab.h/2, w:n.lab.w, h:n.lab.h, lines:n.lab.lines });
@@ -551,6 +556,7 @@ function genogramLayout(d, opts){
   if(has(n=>n.fill)) key.push({ w:0.34, text:anySubst ? 'Psychiatric disorder' : 'Psychiatric / substance use disorder', draw:(x,y)=>symbol(mini({fill:true}), x, y, 0.34, 'Key') });
   if(anySubst) key.push({ w:0.34, text:'Substance use disorder (lower half)', draw:(x,y)=>symbol(mini({subst:true}), x, y, 0.34, 'Key') });
   if(has(n=>n.dead)) key.push({ w:0.34, text:'Deceased', draw:(x,y)=>symbol(mini({dead:true}), x+0.03, y+0.03, 0.28, 'Key') });
+  if(has(n=>n.med)) key.push({ w:0.34, text:'Medical illness (cross beside the symbol)', draw:(x,y)=>medMark(x+0.07, y+0.07, 1) });
   if(has(n=>n.count)) key.push({ w:0.34, text:'×n: several people in one symbol', draw:(x,y)=>symbol(mini({sex:'U', inner:'×n'}), x, y, 0.34, 'Key') });
   if(has(n=>n.ghost)) key.push({ w:0.34, text:'Parent not listed', draw:(x,y)=>symbol(mini({sex:'U', ghost:true, inner:'?'}), x, y, 0.34, 'Key') });
   if(has(n=>n.preg==='Pregnancy')) key.push({ w:0.34, text:'Pregnancy', draw:(x,y)=>symbol(mini({preg:'Pregnancy'}), x+0.02, y+0.02, 0.3, 'Key') });
@@ -595,6 +601,12 @@ function genogramLayout(d, opts){
     it.draw(x, yy);
     prims.push({ t:'text', a:'s', x:x+(it.w ? it.w+0.14 : 0), y:yy+0.03, w:genoTextW(it.text,KF), h:0.28, lines:[{ t:it.text, fs:KF, lh:0.28, c:INK }] }); });
   maxY = Math.max(maxY, ky+kh+0.3);
+  // notes under the genogram (informant, who drew it, a short summary), wrapped to its width
+  if(str(d.genoNotes)){ const NF=0.21, NL=0.3, nw=Math.max(W-0.9, 5), out=[];
+    str(d.genoNotes).slice(0, 600).split(/\n+/).forEach(par=>{ let cur=''; par.split(/\s+/).filter(Boolean).forEach(wd=>{ const t = cur ? cur+' '+wd : wd; if(cur && genoTextW(t, NF)>nw){ out.push(cur); cur=wd; } else cur=t; }); if(cur) out.push(cur); });
+    if(out.length>8){ out.length=8; out[7]=out[7]+'…'; }
+    if(out.length){ const tw=Math.max(...out.map(t=>genoTextW(t, NF))); if(tw+0.9 > W){ const add=(tw+0.9-W)/2; minX-=add; maxX+=add; W=maxX-minX; }
+      prims.push({ t:'text', a:'s', x:minX+0.45, y:maxY-0.1, w:tw, h:out.length*NL, lines:out.map(t=>({ t, fs:NF, lh:NL, c:GENO_MID })), name:'Notes' }); maxY += out.length*NL+0.2; } }
   if(opts.title){ const tw=genoTextW(opts.title, 0.36, true); if(tw+0.8 > W){ const add=(tw+0.8-W)/2; minX-=add; maxX+=add; }
     minY -= 0.75; prims.push({ t:'text', a:'m', x:(minX+maxX)/2, y:minY+0.2, w:tw, h:0.5, lines:[{ t:opts.title, b:true, fs:0.36, lh:0.5, c:INK }] }); }
 
@@ -629,7 +641,7 @@ function genogramSVG(G, unit){
   return out + '</svg>';
 }
 /* ===== END shared block ===== */
-const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_COUPLE_GROUPS, FAM_COUPLE_OLD, FAM_COUPLE_KIND, famCoupleOptions, genoDash, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, famLinkKey, memberLine,
+const api = { layout:genogramLayout, svg:genogramSVG, linkPrims:genoLinkPrims, FAMILY_RELS, FAM_LINKS, FAM_COUPLE, FAM_COUPLE_GROUPS, FAM_COUPLE_OLD, FAM_COUPLE_KIND, famCoupleOptions, genoDash, FAM_OF, FAM_PARTNER_ROLES, FAM_TWIN_ROLES, FAM_BOND, FAM_PREG, famBond, famPreg, famLinkKey, genoYears, memberLine,
   relInfo, famIds, famSorted, famCount, famLinksOf, famLinkLine, famName, ageYears, memberSex, INK:GENO_INK, FILL:GENO_FILL, SLATE:GENO_SLATE, BLUE:GENO_BLUE };
 if (typeof window !== 'undefined') window.Geno = api;
 if (typeof module !== 'undefined') module.exports = api;

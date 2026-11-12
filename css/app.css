@@ -380,6 +380,13 @@ thead th{background:var(--tint);font-weight:700;border-top:none;white-space:nowr
 .lib__row strong{display:block;font:700 1rem/1.3 var(--sans)}
 .lib__row small{display:block;color:var(--ink-3);font-size:.9rem}
 .lib--tight{padding:0}
+/* first-visit welcome, backup reminder, notes box */
+.welcome{text-align:center}.welcome h2{margin-bottom:8px}.welcome p{max-width:46ch;margin-left:auto;margin-right:auto}
+.welcome__dots{display:flex;justify-content:center;gap:8px;margin:0 0 14px}
+.welcome__dots span{width:8px;height:8px;border-radius:50%;background:var(--rule)}.welcome__dots span.is-on{background:var(--accent)}
+.welcome__acts,.nudge__acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-bottom:0}
+.nudge__acts{justify-content:flex-start}.nudge p{margin:0 0 10px}
+.notesfld{display:block;margin-top:14px}.notesfld textarea{width:100%;min-height:84px;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-sm);padding:10px 12px;resize:vertical}
 /* sample families on the home screen: each row is a button */
 .samples__lead{margin:-4px 0 12px}
 .samplerow{width:100%;min-height:56px;background:none;border:0;border-top:1px solid var(--rule);font:inherit;color:inherit;text-align:left;cursor:pointer;justify-content:space-between}

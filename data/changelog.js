@@ -4,6 +4,18 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.6.0',
+    date: '2026-11-13',
+    title: "Years, medical illness, notes, a welcome and a privacy page",
+    items: [
+      { type: 'feature', text: "Year of birth and year of death for each person, shown under the name (1950–2020)." },
+      { type: 'feature', text: "Medical illness: a small cross beside the symbol, separate from the shading for a psychiatric disorder." },
+      { type: 'feature', text: "Notes under the genogram: a box above the chart options for the informant, who drew it and a short summary. It is printed below the key." },
+      { type: 'feature', text: "A short welcome the first time the app is opened, and a reminder to save a backup file once you have a few genograms." },
+      { type: 'content', text: "A Privacy page in the menu: nothing leaves this device, where your genograms are kept, and how to remove them." }
+    ]
+  },
+  {
     version: '1.5.0',
     date: '2026-11-13',
     title: "Clearer charts, a household outline and more relationship lines",
