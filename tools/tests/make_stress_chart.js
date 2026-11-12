@@ -1,0 +1,10 @@
+require('fs').mkdirSync((process.env.GENO_QA||'/tmp/geno-qa')+'/pp',{recursive:true});
+const fam=[{id:'pgf',name:'Pedro',rel:'Paternal grandfather',age:'70',status:'Deceased',cond:'Stroke'},{id:'pgm',name:'Rosa',rel:'Paternal grandmother',age:'85'},{id:'mgm',name:'Luz',rel:'Maternal grandmother',age:'80',subst:true},
+{id:'g1',name:'Lolo A',rel:'Great-grandfather',of:'pgf',status:'Deceased'},{id:'g2',name:'Lola A',rel:'Great-grandmother',of:'pgf',status:'Deceased'},{id:'g5',name:'Lola C',rel:'Great-grandmother',of:'mgm'},
+{id:'fa',name:'Ramon',rel:'Father',age:'62',occ:'tricycle driver',psych:true,subst:true,cond:'Alcohol use disorder'},{id:'mo',name:'Lourdes',rel:'Mother',age:'58',withPt:true},
+{id:'un',name:'Ben',rel:'Paternal uncle',age:'60'},{id:'co',name:'Nico',rel:'Male cousin',age:'31',of:'un',bond:'Adopted'},{id:'co2',name:'Fe',rel:'Female cousin',age:'28',of:'un',bond:'Foster',subst:true},
+{id:'b1',name:'Jun',rel:'Brother',age:'38'},{id:'s1',name:'Ana',rel:'Sister',age:'30'},{id:'h',name:'Marco',rel:'Husband',age:'36',withPt:true},{id:'x',name:'Dan',rel:'Former partner',sex:'Male',age:'40'},
+{id:'x2',name:'Rey',rel:'Former partner',sex:'Male',age:'45',relStatus:'Annulled / divorced'},{id:'k4',name:'Carl',rel:'Son',age:'15',of:'x2'},
+{id:'k1',name:'Bea',rel:'Daughter',age:'8',twin:true},{id:'k2',name:'Migo',rel:'Son',age:'8',twin:true},{id:'k0',rel:'Child (sex not stated)',preg:'Miscarriage'},{id:'k7',rel:'Son',preg:'Stillbirth'},{id:'k8',rel:'Daughter',preg:'Abortion'},{id:'k9',rel:'Child (sex not stated)',preg:'Pregnancy',age:'20 weeks'},{id:'k3',name:'Baby',rel:'Son',age:'8 mo',of:'x'}];
+const chart={title:'Stress',ptName:'Lia',ptAge:'34',ptSex:'Female',ptCond:'MDD',ptFill:true,ptSubst:true,parentsRel:'Separated',ptRel:'Married',byAge:true,family:fam,links:[{a:'pt',type:'Conflictual',b:'fa'},{a:'pt',type:'Close',b:'h'}]};
+require('fs').writeFileSync((process.env.GENO_QA||'/tmp/geno-qa')+'/pp/stress.genogram.json',JSON.stringify({app:'genogram',kind:'chart',format:1,chart}));

@@ -1,0 +1,11 @@
+// Old genograms must draw exactly as before. Usage: node regress.js <old genogram-engine.js> <new genogram-engine.js>
+// Get the old one with: git show <ref>:js/genogram-engine.js > /tmp/old-engine.js  (symbol ids are ignored)
+const A=require(require('path').resolve(process.argv[2])), B=require(require('path').resolve(process.argv[3]));
+const fam=[{id:'pgf',name:'Pedro',rel:'Paternal grandfather',age:'70',status:'Deceased',cond:'Stroke'},{id:'pgm',name:'Rosa',rel:'Paternal grandmother',age:'85'},{id:'mgf',name:'Jose',rel:'Maternal grandfather',age:'88'},{id:'mgm',name:'Luz',rel:'Maternal grandmother',age:'80'},
+{id:'fa',name:'Ramon',rel:'Father',age:'62',occ:'tricycle driver',psych:true,cond:'Alcohol use disorder'},{id:'mo',name:'Lourdes',rel:'Mother',age:'58',withPt:true},{id:'sf',name:'Dong',rel:'Stepfather',age:'50'},{id:'hs',name:'Pia',rel:'Maternal half-sister',age:'12'},
+{id:'un',name:'Ben',rel:'Paternal uncle',age:'60'},{id:'au',name:'Nena',rel:'Maternal aunt',age:'61'},{id:'b1',name:'Jun',rel:'Brother',age:'38'},{id:'b1w',name:'Tess',rel:"Sibling's spouse / partner",sex:'Female',age:'36',of:'b1'},{id:'n1',name:'Kiko',rel:'Nephew',age:'9',of:'b1'},
+{id:'s1',name:'Ana',rel:'Sister',age:'30'},{id:'h',name:'Marco',rel:'Husband',age:'36',withPt:true},{id:'x',name:'',rel:'Former partner',count:'3'},{id:'k1',name:'Bea',rel:'Daughter',age:'8',twin:true},{id:'k2',name:'Migo',rel:'Son',age:'8',twin:true},{id:'k3',name:'Baby',rel:'Son',age:'8 mo',of:'x'},{id:'g1',name:'Gab',rel:'Grandson',age:'1',of:'k1'}];
+const mk=()=>({agesex:'34 / Female',genoPtName:'Lia',genoPtCond:'MDD',parentsRel:'Separated',ptRel:'Married',family:JSON.parse(JSON.stringify(fam)),famLinks:[{a:'pt',type:'Conflictual',b:'fa'},{a:'pt',type:'Very close / enmeshed',b:'mo'},{a:'b1',type:'Distant',b:'fa'},{a:'pt',type:'Abusive toward',b:'h'},{a:'s1',type:'Cut off / estranged',b:'b1'}]});
+const strip=L=>JSON.stringify(L.prims.map(p=>{const q={...p}; delete q.id; return q;}));
+let bad=0; [{},{key:'right'},{title:'T'}].forEach(o=>{ const same=strip(A.layout(mk(),{...o}))===strip(B.layout(mk(),{...o})); if(!same) bad++; console.log(JSON.stringify(o), same?'IDENTICAL':'DIFFERENT'); });
+process.exit(bad?1:0);
