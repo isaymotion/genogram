@@ -22,6 +22,7 @@ var lib = block('var LIB = ['), r;
 var rowRe = /\[\s*'((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)'/g; while ((r = rowRe.exec(lib))) { add(r[1], 'LIB'); add(r[2], 'LIB'); }
 var hRe = /\bh: '((?:[^'\\]|\\.)*)'/g; while ((r = hRe.exec(lib))) add(r[1], 'LIB');
 var guide = block('var GUIDE = ['); rowRe.lastIndex = 0; while ((r = rowRe.exec(guide))) { add(r[1].replace(/\\'/g, "'"), 'GUIDE'); add(r[2].replace(/\\'/g, "'"), 'GUIDE'); }
+if (src.indexOf('var PRIVACY = [') >= 0) { var priv = block('var PRIVACY = ['); rowRe.lastIndex = 0; while ((r = rowRe.exec(priv))) { add(r[1].replace(/\\'/g, "'"), 'PRIVACY'); add(r[2].replace(/\\'/g, "'"), 'PRIVACY'); } }
 var groups = block('var GROUPS = ['), lRe = /label: '((?:[^'\\]|\\.)*)'/g; while ((r = lRe.exec(groups))) add(r[1], 'GROUPS');
 var nav = block('var NAV = ['); nav.split('\n').forEach(function (ln) { var x = /label: '((?:[^'\\]|\\.)*)'/.exec(ln); if (x && ln.indexOf('tkey') < 0) add(x[1], 'NAV'); });
 var st = /var STEPS = (\[.*\]);/.exec(src); JSON.parse(st[1].replace(/'/g, '"')).forEach(function (s) { add(s[1], 'STEPS'); });
