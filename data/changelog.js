@@ -4,6 +4,15 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.4.0',
+    date: '2026-11-13',
+    title: 'Four more sample families',
+    items: [
+      { type: 'feature', text: 'Sample families on the home screen: five made-up families to open, study and edit. New are the Santos family (a blended family), the Dela Cruz family (an older index person with children and grandchildren), the Villanueva family (substance use, current and former partners) and the Lim family (a family history of psychosis, with great-grandparents and a twin).', href: '#/' },
+      { type: 'content', text: 'The new samples use the couple lines added in 1.3.0: nullity, cohabitation, engagement, and committed and casual relationships that ended.' }
+    ]
+  },
+  {
     version: '1.3.0',
     date: '2026-11-13',
     title: 'Many more kinds of couple',

@@ -6,7 +6,7 @@ Draw a clear family genogram in minutes: add the family, mark how people relate,
 
 ## Features
 
-- **Your genograms:** make as many as you need; each is saved on the device with a small preview. Duplicate or delete from the home screen. A made-up sample family shows what the app can draw.
+- **Your genograms:** make as many as you need; each is saved on the device with a small preview. Duplicate or delete from the home screen. Five made-up sample families (Reyes, Santos, Dela Cruz, Villanueva, Lim; `sampleChart(n)` and `SAMPLES` in `js/app.js`) show what the app can draw.
 - **Step 1, Family:** fill in the index person, then add relatives with one tap (+ Father, + Mother, + Sister…). Each person is a row that opens for age, occupation, conditions, living or deceased, lives with the index person, twin, and "Number of people" (one symbol for several people). "Someone else" covers step-parents, half-siblings, former partners, siblings' partners and children, children's partners, grandchildren, grandparents, aunts and uncles.
 - **Step 2, Relationships:** lines between any two people: close, very close / enmeshed, distant, conflictual, close but conflictual, cut off / estranged, abusive toward.
 - **Step 3, Genogram:** drawn automatically with standard symbols, siblings and children oldest to youngest, and a key that lists only what the chart uses. Save as a picture (PNG) or a one-page A4 PDF; both are made on the device.

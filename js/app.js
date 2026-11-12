@@ -633,8 +633,9 @@
   function addChart(c) { DB.byId[c.id] = c; DB.order.unshift(c.id); saveNow(); rebuildIndex(); return c; }
   function removeChart(id) { delete DB.byId[id]; DB.order = DB.order.filter(function (x) { return x !== id; }); saveNow(); rebuildIndex(); }
   function charts() { return DB.order.map(getChart).filter(Boolean); }
-  /* A made-up family that shows most of what the app can draw */
-  function sampleChart() {
+  /* Made-up families that show what the app can draw. Every name and detail is invented. sampleChart(n): n = 0 (Reyes) to 4 */
+  function sampleChart(n) {
+    if (n && SAMPLES[n - 1]) return SAMPLES[n - 1]();
     var c = blankChart('Sample: the Reyes family');
     c.ptName = 'Lia'; c.ptAge = '34'; c.ptSex = 'Female'; c.ptOcc = 'teacher'; c.ptCond = 'Major depressive disorder'; c.parentsRel = 'Separated'; c.ptRel = 'Married';
     c.family = [
@@ -657,6 +658,87 @@
     c.links = [{ a: 'pt', type: 'Conflictual', b: 'fa' }, { a: 'pt', type: 'Very close / enmeshed', b: 'mo' }, { a: 'pt', type: 'Close', b: 's1' }, { a: 'b1', type: 'Distant', b: 'fa' }];
     return c;
   }
+  var SAMPLES = [
+    function () {   // a blended family: annulled marriage, step-parents on both sides, half-siblings
+      var c = blankChart('Sample: the Santos family');
+      c.ptName = 'Paolo'; c.ptAge = '16'; c.ptSex = 'Male'; c.ptOcc = 'Grade 10 student'; c.ptCond = 'ADHD'; c.parentsRel = 'Nullity';
+      c.family = [
+        { id: 'mgf', name: 'Tomas', rel: 'Maternal grandfather', age: '70', status: 'Deceased', cond: 'Heart attack' },
+        { id: 'mgm', name: 'Nena', rel: 'Maternal grandmother', age: '68', cond: 'Diabetes', withPt: true },
+        { id: 'fa', name: 'Dennis', rel: 'Father', age: '45', occ: 'seafarer' },
+        { id: 'smo', name: 'Joy', rel: 'Stepmother', age: '38', relStatus: 'Married' },
+        { id: 'phb', name: 'Enzo', rel: 'Paternal half-brother', age: '3' },
+        { id: 'mo', name: 'Carla', rel: 'Mother', age: '42', occ: 'call center agent', psych: true, cond: 'Generalized anxiety disorder', withPt: true },
+        { id: 'sfa', name: 'Rico', rel: 'Stepfather', age: '47', occ: 'driver', relStatus: 'Cohabitation', withPt: true },
+        { id: 'mhs', name: 'Mika', rel: 'Maternal half-sister', age: '5', withPt: true },
+        { id: 's1', name: 'Trina', rel: 'Sister', age: '19', occ: 'college student' }
+      ];
+      c.links = [{ a: 'pt', type: 'Conflictual', b: 'sfa' }, { a: 'pt', type: 'Close', b: 's1' }, { a: 'pt', type: 'Distant', b: 'fa' }, { a: 'pt', type: 'Very close / enmeshed', b: 'mgm' }];
+      return c;
+    },
+    function () {   // an older index person: children, their partners and the grandchildren
+      var c = blankChart('Sample: the Dela Cruz family');
+      c.ptName = 'Corazon'; c.ptAge = '72'; c.ptSex = 'Female'; c.ptOcc = 'retired teacher'; c.ptCond = 'Major neurocognitive disorder'; c.ptRel = 'Married';
+      c.family = [
+        { id: 'b1', name: 'Andres', rel: 'Brother', age: '77', status: 'Deceased', cond: 'Stroke' },
+        { id: 'z1', name: 'Pilar', rel: 'Sister', age: '75', psych: true, cond: 'Dementia' },
+        { id: 'h', name: 'Ernesto', rel: 'Husband', age: '74', status: 'Deceased', cond: 'Lung cancer' },
+        { id: 'd1', name: 'Marites', rel: 'Daughter', age: '48', occ: 'nurse; main carer', withPt: true },
+        { id: 'd1h', name: 'Rolly', rel: "Child's spouse / partner", sex: 'Male', age: '50', of: 'd1', withPt: true },
+        { id: 'g1', name: 'Carlo', rel: 'Grandson', age: '21', of: 'd1' },
+        { id: 'g2', name: 'Jana', rel: 'Granddaughter', age: '17', of: 'd1', withPt: true },
+        { id: 's1', name: 'Noel', rel: 'Son', age: '45', occ: 'works in Dubai' },
+        { id: 's1w', name: 'Liza', rel: "Child's spouse / partner", sex: 'Female', age: '43', of: 's1', relStatus: 'Separated' },
+        { id: 'g3', name: 'Ella', rel: 'Granddaughter', age: '12', of: 's1', twin: true },
+        { id: 'g4', name: 'Emma', rel: 'Granddaughter', age: '12', of: 's1', twin: true },
+        { id: 'd2', name: 'Grace', rel: 'Daughter', age: '40', occ: 'accountant', psych: true, cond: 'Major depressive disorder' },
+        { id: 'g5', name: 'Sam', rel: 'Grandson', age: '6', of: 'd2', bond: 'Adopted' }
+      ];
+      c.links = [{ a: 'pt', type: 'Very close / enmeshed', b: 'd1' }, { a: 'pt', type: 'Distant', b: 's1' }, { a: 'd1', type: 'Conflictual', b: 's1' }, { a: 'pt', type: 'Close', b: 'd2' }];
+      return c;
+    },
+    function () {   // substance use across generations; a current partner, two former partners and their children
+      var c = blankChart('Sample: the Villanueva family');
+      c.ptName = 'Marco'; c.ptAge = '29'; c.ptSex = 'Male'; c.ptOcc = 'construction worker'; c.ptCond = 'Methamphetamine use disorder'; c.ptFill = false; c.ptSubst = true; c.parentsRel = 'Married';
+      c.family = [
+        { id: 'pgf', name: 'Isko', rel: 'Paternal grandfather', age: '66', status: 'Deceased', subst: true, cond: 'Alcohol use disorder' },
+        { id: 'pgm', name: 'Sela', rel: 'Paternal grandmother', age: '82' },
+        { id: 'pun', name: 'Dado', rel: 'Paternal uncle', age: '60', psych: true, cond: 'Schizophrenia' },
+        { id: 'fa', name: 'Ruben', rel: 'Father', age: '58', status: 'Deceased', subst: true, cond: 'Alcohol use disorder; liver cirrhosis' },
+        { id: 'mo', name: 'Elena', rel: 'Mother', age: '55', occ: 'market vendor' },
+        { id: 'b1', name: 'Jomar', rel: 'Brother', age: '33', subst: true, cond: 'Cannabis use disorder' },
+        { id: 's1', name: 'Liezl', rel: 'Sister', age: '25', occ: 'caregiver abroad' },
+        { id: 'p1', name: 'Kaye', rel: 'Partner', sex: 'Female', age: '26', relStatus: 'Cohabitation', withPt: true },
+        { id: 'x1', name: 'Jen', rel: 'Former partner', sex: 'Female', age: '28', relStatus: 'Committed relationship and separation' },
+        { id: 'x2', name: 'Mae', rel: 'Former partner', sex: 'Female', age: '24', relStatus: 'Casual relationship and separation' },
+        { id: 'k1', name: 'Jace', rel: 'Son', age: '7', of: 'x1' },
+        { id: 'k2', name: 'Lia', rel: 'Daughter', age: '3', of: 'x2' },
+        { id: 'k3', name: '', rel: 'Child (sex not stated)', age: '24 weeks', preg: 'Pregnancy' }
+      ];
+      c.links = [{ a: 'fa', type: 'Abusive toward', b: 'pt' }, { a: 'pt', type: 'Close but conflictual', b: 'mo' }, { a: 'pt', type: 'Cut off / estranged', b: 'b1' }, { a: 'pt', type: 'Close', b: 's1' }];
+      return c;
+    },
+    function () {   // a family history of psychosis: great-grandparents, an aunt and cousins, a twin, a fiancé
+      var c = blankChart('Sample: the Lim family');
+      c.ptName = 'Angela'; c.ptAge = '22'; c.ptSex = 'Female'; c.ptOcc = 'nursing student'; c.ptCond = 'Schizophrenia'; c.parentsRel = 'Married';
+      c.family = [
+        { id: 'gg1', name: 'Jose', rel: 'Great-grandfather', of: 'mgm', status: 'Deceased' },
+        { id: 'gg2', name: 'Ines', rel: 'Great-grandmother', of: 'mgm', status: 'Deceased', psych: true, cond: 'Psychosis, never treated' },
+        { id: 'mgf', name: 'Felipe', rel: 'Maternal grandfather', age: '78' },
+        { id: 'mgm', name: 'Aurora', rel: 'Maternal grandmother', age: '71', status: 'Deceased', psych: true, cond: 'Bipolar disorder' },
+        { id: 'fa', name: 'Henry', rel: 'Father', age: '52', occ: 'shop owner', withPt: true },
+        { id: 'mo', name: 'Susan', rel: 'Mother', age: '50', occ: 'bookkeeper', withPt: true },
+        { id: 'mau', name: 'Cecilia', rel: 'Maternal aunt', age: '47', psych: true, cond: 'Schizophrenia' },
+        { id: 'co1', name: 'Ben', rel: 'Male cousin', age: '20', of: 'mau' },
+        { id: 'co2', name: 'Joy', rel: 'Female cousin', age: '14', of: 'mau', bond: 'Foster' },
+        { id: 'z1', name: 'Andrea', rel: 'Sister', age: '22', twin: true, withPt: true },
+        { id: 'b1', name: 'Kevin', rel: 'Brother', age: '17', withPt: true },
+        { id: 'fi', name: 'Miguel', rel: 'Partner', sex: 'Male', age: '24', relStatus: 'Engagement' }
+      ];
+      c.links = [{ a: 'pt', type: 'Very close / enmeshed', b: 'z1' }, { a: 'pt', type: 'Close', b: 'mo' }, { a: 'pt', type: 'Distant', b: 'fa' }, { a: 'pt', type: 'Close', b: 'fi' }];
+      return c;
+    }
+  ];
   /* What the drawing engine expects */
   /* "Maria Clara Santos" -> "M.C.S."; text that is already initials (AA, J.R.) is left alone */
   function initialsOf(s) {
@@ -734,6 +816,13 @@
                 '<p class="chartcard__acts"><a class="link-btn" href="#/chart/' + esc(c.id) + '">' + esc(tx('Edit')) + '</a><button type="button" class="link-btn" data-act="dup" data-id="' + esc(c.id) + '">' + esc(tx('Duplicate')) + '</button><button type="button" class="link-btn danger" data-act="del" data-id="' + esc(c.id) + '">' + esc(tx('Delete')) + '</button></p></article>';
             }).join('') + '</div>'
           : '<div class="empty"><h2>' + esc(tx('No genograms yet')) + '</h2><p>' + esc(tx('Start a new one, or open the sample family to see how it works.')) + '</p><p><button type="button" class="btn btn--solid" data-act="new">' + esc(tx('New genogram')) + '</button></p></div>') +
+        '<h2 class="home__h home__h--gap">' + esc(tx('Sample families')) + '</h2><p class="muted samples__lead">' + esc(tx('Made-up families that show what the app can draw. Opening one adds a copy to your genograms, which you can edit or delete.')) + '</p>' +
+        '<div class="card lib samples">' + [['the Reyes family', tx('Three generations: separated parents, twins, a miscarriage, an adopted cousin and a brother’s family.')],
+          ['the Santos family', tx('A blended family: an annulled marriage, step-parents, half-siblings and a live-in partner.')],
+          ['the Dela Cruz family', tx('An older index person: children and their partners, grandchildren, twins and an adopted grandchild.')],
+          ['the Villanueva family', tx('Substance use across generations: a current partner, former partners, children with different mothers and a pregnancy.')],
+          ['the Lim family', tx('A family history of psychosis: great-grandparents, an aunt and cousins, a twin sister and a fiancé.')]].map(function (r, i) {
+            return '<button type="button" class="lib__row samplerow" data-act="sample-n" data-n="' + i + '"><span><strong>' + esc(r[0].charAt(0).toUpperCase() + r[0].slice(1)) + '</strong><small>' + esc(r[1]) + '</small></span><span class="samplerow__go" aria-hidden="true">›</span></button>'; }).join('') + '</div>' +
         '<h2 class="home__h home__h--gap">' + esc(tx('How it works')) + '</h2><div class="steps">' + steps.map(function (s) {
           return '<div class="stepcard" style="--c:' + s[3] + '"><span class="stepcard__n">' + s[0] + '</span><h3>' + esc(tx(s[1])) + '</h3><p>' + esc(tx(s[2])) + '</p></div>'; }).join('') + '</div>' +
         '<div class="cards cards--two"><a class="card tile" href="#/symbols">' + icon('shapes', 'tile__ico') + '<h3>' + esc(tx('Symbols and lines')) + '</h3><p class="muted">' + esc(tx('What every shape and line means.')) + '</p></a>' +
@@ -923,6 +1012,7 @@
     /* home */
     if (act === 'new') { var nc = addChart(blankChart('Family genogram')); openMember = null; location.hash = '#/chart/' + nc.id; return; }
     if (act === 'sample') { var sc = addChart(sampleChart()); location.hash = '#/chart/' + sc.id + '/view'; return; }
+    if (act === 'sample-n') { var sn = addChart(sampleChart(+b.getAttribute('data-n') || 0)); location.hash = '#/chart/' + sn.id + '/view'; return; }
     if (act === 'dup') { var src = getChart(id); if (!src) return; var cp = JSON.parse(JSON.stringify(src)); cp.id = uid('c'); cp.title = (src.title || 'Family genogram') + ' (copy)'; cp.created = cp.updated = new Date().toISOString(); addChart(cp); rerender(); return; }
     if (act === 'del') { var dc = getChart(id); if (!dc) return; var at0 = DB.order.indexOf(id); removeChart(id); rerender();
       snack(txf('Deleted “{title}”.', { title: dc.title || tx('Family genogram') }), tx('Undo'), function () { if (getChart(dc.id)) return; DB.byId[dc.id] = dc; DB.order.splice(Math.max(0, at0), 0, dc.id); saveNow(); rebuildIndex(); if (currentKey() === 'home') rerender(); });
