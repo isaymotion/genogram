@@ -31,7 +31,7 @@ async def main():
         d=dict(vals); ok('relationship select keeps English values, Tagalog labels', d.get('Father')=='Ama' and d.get('Paternal uncle')=='Tiyo sa ama' and d.get("Sibling's spouse / partner")=='Asawa / kapareha ng kapatid', vals[:6])
         ok('selected value still English',await page.input_value('#m-fa select[data-k="rel"]')=='Father')
         segs=await page.eval_on_selector_all('#m-fa button[data-set="status"]','els=>els.map(e=>[e.dataset.v,e.textContent])'); ok('status buttons keep English data-v',segs==[['Living','Buhay'],['Deceased','Pumanaw na']],segs)
-        cpl=await page.eval_on_selector_all('button[data-set="parentsRel"]','els=>els.map(e=>[e.dataset.v,e.textContent])'); ok('couple buttons keep English data-v',['Separated','Hiwalay'] in cpl,cpl)
+        cpl=await page.eval_on_selector_all('select[data-k="parentsRel"] option','els=>els.map(e=>[e.value,e.textContent])'); ok('couple list keeps English values, Tagalog labels',['Separated','Hiwalay'] in cpl and ['Cohabitation','Nagsasama (live-in)'] in cpl,cpl[:8])
         await page.click('#m-fa button[data-set="status"][data-v="Deceased"]'); await page.wait_for_timeout(600)
         st=await page.evaluate("(function(id){var c=JSON.parse(localStorage.getItem('g:v1:charts'));return c.byId[id].family.filter(function(m){return m.id==='fa'})[0].status;})", cid)
         ok('stored status stays English',st=='Deceased',st)

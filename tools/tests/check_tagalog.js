@@ -34,6 +34,7 @@ vm.runInContext(fs.readFileSync(path.join(repo, 'js/genogram-engine.js'), 'utf8'
 var G = ctx.window.Geno; if (!G) throw new Error('engine did not set window.Geno');
 G.FAMILY_RELS.forEach(function (x) { add(x.rel, 'FAMILY_RELS'); add(x.g, 'FAMILY_RELS g'); });
 G.FAM_COUPLE.forEach(function (x) { add(x, 'FAM_COUPLE'); });
+(G.FAM_COUPLE_GROUPS || []).forEach(function (g) { add(g.h, 'FAM_COUPLE_GROUPS'); }); if (G.FAM_COUPLE_OLD) add('Older symbol', 'famCoupleOptions');
 G.FAM_LINKS.forEach(function (x) { add(x.type, 'FAM_LINKS'); });
 G.FAM_BOND.forEach(function (x) { add(x, 'FAM_BOND'); });
 G.FAM_PREG.forEach(function (x) { add(x, 'FAM_PREG'); });
