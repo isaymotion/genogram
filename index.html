@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Genogram</title>
+  <meta name="description" content="Draw a clear family genogram in minutes: add the family, mark how people relate, and save it as a picture or PDF.">
+  <meta name="author" content="Isabella Navarro, MD">
+  <meta name="theme-color" content="#1C676E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Genogram">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon-64.png" sizes="64x64" type="image/png">
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Figtree:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <!-- Runs before first paint. Theme: only "light" or "dark" is stored; no attribute = match device. -->
+  <script>
+    (function () {
+      try {
+        var t = JSON.parse(window.localStorage.getItem('g:v1:theme'));
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* storage unavailable: match device */ }
+      try {
+        if (JSON.parse(window.localStorage.getItem('g:v1:navCollapsed') || 'false')) document.documentElement.classList.add('nav-collapsed');
+      } catch (e) { /* storage unavailable: sidebar shown */ }
+    })();
+  </script>
+  <script>
+    (function () {
+      try {
+        var z = JSON.parse(window.localStorage.getItem('g:v1:textSize') || 'null');
+        if (z === '90' || z === '112.5' || z === '125') document.documentElement.style.fontSize = z + '%';
+      } catch (e) { /* storage unavailable: default size */ }
+    })();
+  </script>
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Open menu" data-i18n-attr="aria-label:menu.open" aria-controls="sidenav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn collapse-btn" id="collapse-btn" type="button" aria-label="Hide the sidebar" aria-controls="sidenav">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 5v14" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <div class="histnav" role="group" aria-label="Page history" data-i18n-attr="aria-label:hist.group">
+      <button class="hist-btn" id="nav-back" type="button" aria-label="Back" title="Back (Alt+Left)" data-i18n-attr="aria-label:hist.back;title:hist.backTitle" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="hist-btn" id="nav-fwd" type="button" aria-label="Forward" title="Forward (Alt+Right)" data-i18n-attr="aria-label:hist.fwd;title:hist.fwdTitle" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <a class="brand" href="#/" aria-label="Genogram, home">
+      <img src="icons/icon-192.png" alt="" width="34" height="34">
+      <span class="brand__name">Genogram <span class="brand__sub">Family genogram maker</span></span>
+    </a>
+    <div class="search" role="search">
+      <label class="sr-only" for="q" data-i18n="search.label">Search the whole app</label>
+      <svg class="search__icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search this app" data-i18n-attr="placeholder:search.placeholder" aria-controls="suggest" aria-expanded="false" aria-autocomplete="list">
+      <kbd class="search__kbd" aria-hidden="true">/</kbd>
+      <div id="suggest" class="suggest" role="listbox" hidden></div>
+    </div>
+    <button type="button" class="icon-btn text-size-btn" id="textSizeBtn" aria-label="Text size" data-i18n-attr="aria-label:textsize.title;title:textsize.title" aria-expanded="false" aria-controls="textSizePanel" title="Text size"><span aria-hidden="true">A<small>A</small></span></button>
+    <button class="icon-btn theme-btn" id="theme-btn" type="button" aria-label="Theme: Match device" title="Theme: Match device">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="sidenav" id="sidenav" aria-label="Main menu" data-i18n-attr="aria-label:menu.main">
+    <div class="sidenav__head">
+      <span class="sidenav__title" data-i18n="menu.title">Menu</span>
+      <button class="icon-btn sidenav__close" id="nav-close" type="button" aria-label="Close menu" data-i18n-attr="aria-label:menu.close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    </div>
+    <nav class="sidenav__body" id="sidenav-body" aria-label="Screens"></nav>   <!-- filled by JS from NAV: .nav-group > .nav-label + ul > li > a.nav-item -->
+  </aside>
+  <div class="nav-backdrop" id="nav-backdrop" hidden></div>
+
+  <div class="content">
+    <main id="main" tabindex="-1">
+      <noscript><div class="wrap page"><p>Genogram needs JavaScript turned on to run.</p></div></noscript>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap site-foot__inner">
+        <p class="foot-links"><a href="#/whats-new"><span data-i18n="nav.whatsNew">What’s new</span> <span class="badge" data-badge="news" hidden></span></a><a href="#/about" data-i18n="nav.about">About</a></p>
+        <section class="backup" id="backup" aria-labelledby="backup-title">
+          <div class="backup__head">
+            <svg class="backup__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div><h2 class="backup__title" id="backup-title" data-i18n="backup.title">Back up your data</h2>
+            <p class="backup__text" data-i18n="backup.text">Anything this app saves lives only in this browser. Export a backup file to keep it safe, then import it on another phone, tablet or computer to pick up where you left off.</p></div>
+          </div>
+          <div class="backup__actions">
+            <button type="button" class="btn backup__btn" id="bk-export" data-i18n="backup.export">Export backup</button>
+            <input type="file" id="bk-file" class="sr-only" accept=".json,application/json">
+            <label class="btn backup__btn" for="bk-file" id="bk-import-label" data-i18n="backup.import">Import backup</label>
+            <button type="button" class="link-btn backup__undo" id="bk-undo" data-i18n="backup.undo" hidden>Undo last import</button>
+          </div>
+          <p class="backup__meta" id="bk-meta"></p>
+          <p class="backup__status" id="bk-status" role="status" aria-live="polite"></p>
+        </section>
+        <p class="attribution">App created by Isabella Navarro, MD. Latest version November 2026. <a href="mailto:isaymotion@gmail.com">isaymotion@gmail.com</a></p>
+        <p class="disclaimer">A tool for the Psychiatry and Public Mental Health Residency Training Program, Mariveles Mental Wellness and General Hospital. Everything you enter stays on this device unless you export it; nothing is sent to a server.</p>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- Mobile bottom tab bar (shown <=1099px): Home, Menu (opens the drawer), What's new, About -->
+<nav class="tabbar" aria-label="Quick navigation" data-i18n-attr="aria-label:nav.quick">
+  <a href="#/" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span data-i18n="nav.home">Home</span></a>
+  <button type="button" id="tab-menu" data-tab="menu" aria-controls="sidenav" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span data-i18n="menu.title">Menu</span></button>
+  <a href="#/whats-new" data-tab="whats-new"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h6M9 16h6"/></svg><span data-i18n="nav.whatsNew">What’s new</span><span class="badge" data-badge="news" hidden></span></a>
+  <a href="#/about" data-tab="about"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span data-i18n="nav.about">About</span></a>
+</nav>
+
+<script src="data/app-meta.js"></script>
+<script src="data/changelog.js"></script>
+<script src="data/hospital.js"></script>
+<script src="data/strings.js"></script>
+<script src="js/genogram-engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "Genogram",
+  "short_name": "Genogram",
+  "description": "Draw a clear family genogram in minutes: add the family, mark how people relate, and save it as a picture or PDF.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4FAFB",
+  "theme_color": "#0E1F20",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
