@@ -22,7 +22,9 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     if not args:
         sys.exit(__doc__)
-    engine = (here / 'js' / 'genogram-engine.js').read_text(encoding='utf-8')
+    # Use the checkout you are standing in (main), not this branch's older copy of the engine.
+    local = pathlib.Path.cwd() / 'js' / 'genogram-engine.js'
+    engine = (local if local.exists() else here / 'js' / 'genogram-engine.js').read_text(encoding='utf-8')
     target = pathlib.Path(args[0]) / 'index.html'
     page = target.read_text(encoding='utf-8')
     _, _, src = block(engine, 'genogram-engine.js')

@@ -1,4 +1,4 @@
-# Genogram: handoff (updated 2026-11-13, after 1.7.0; next is store publishing)
+# Genogram: handoff (updated 2026-11-13, store publishing started: waiting on her accounts)
 
 ## 1. Project and audience
 - Standalone family genogram maker for psychiatry residents and nurses. Owner: Ma. Isabella P. Navarro, MD (GitHub `isaymotion`). She does not code: explain plainly, short replies (she is often on her phone).
@@ -37,7 +37,7 @@
 
 ## 4. Recipe for one release
 1. Restore tools and run the baseline tests (section 5) before changing anything.
-2. Make the change. If it touches the shared block: `python3 tools/sync_engine.py ../case-psychinterview`, then add any new field to BOTH forms (Genogram: `memberEditor` in `js/app.js`; PsychInterview: `familyHTML` in `index.html`, plus its table export/import of family members).
+2. Make the change. If it touches the shared block: `python3 ../genogram-dt/tools/sync_engine.py ../case-psychinterview` (from the main checkout), then add any new field to BOTH forms (Genogram: `memberEditor` in `js/app.js`; PsychInterview: `familyHTML` in `index.html`, plus its table export/import of family members).
 3. New on-screen text: wrap in `tx()` (engine lists such as `FAM_COUPLE_GROUPS` are picked up by `check_tagalog.js` directly) and add the Tagalog to `data/content-tl.js`; `check_tagalog.js` must report 0 missing.
 4. Genogram version: `data/app-meta.js` `version`, `sw.js` `VERSION`, new entry at the top of `data/changelog.js` (all three agree). New files go in the `sw.js` CORE list. Update `README.md`.
 5. PsychInterview version: read the current `CACHE` in its `sw.js`, add one; add an entry at the top of `CHANGELOG` in its `index.html` (next `id`).
@@ -61,7 +61,7 @@ python3 -I $T/t_170.py "$PWD" ../case-psychinterview   # 13 of 13
 python3 $T/t_app.py "$PWD" /tmp/geno-out      # errors []
 git show <last release>:js/genogram-engine.js > /tmp/old-engine.js
 node $T/regress.js /tmp/old-engine.js js/genogram-engine.js   # IDENTICAL x3 (against 1.5.0 or later; 1.5.0 itself changed the deceased age on purpose)
-python3 tools/sync_engine.py ../case-psychinterview --check   # "In step"
+python3 ../genogram-dt/tools/sync_engine.py ../case-psychinterview --check   # "In step" (run from the main checkout)
 python3 <isaymotion-app-design skill>/scripts/check_design.py .   # PASS
 python3 <skill>/scripts/check_sw.py ../case-psychinterview        # PASS
 node $T/regress_random.js /tmp/old-engine.js js/genogram-engine.js   # different: 0 of 300
@@ -85,14 +85,16 @@ Both repos must be attached with push access (`add_repo`, access push).
 | PowerPoint slide check of new symbols | done, all draw correctly |
 | Her review of the Tagalog draft (everything since 1.2.0) | not done |
 | Her test on a real iPhone and iPad (especially “Move people” by finger) | not done |
-| Store publishing | NEXT, once she has done her two steps above (see below) |
+| Store publishing | STARTED 2026-11-13: step 1 (her accounts) given to her; nothing built yet (see below) |
 
 ## 7. Next steps
 - If she asks for another genogram feature first: next Genogram version 1.8.0; PsychInterview: current `CACHE` + 1.
-- **Store publishing is next.** On 2026-11-13 she said: after these improvements, publish. Start the new chat by asking for the two answers below and how her two own steps went (trying the app on her iPhone and iPad, especially “Move people” by finger; reviewing the Tagalog). Fix whatever she found before wrapping the app. Where publishing stopped:
-  - She has no Apple or Google developer account yet. Her steps: enroll in the Apple Developer Program as an individual (Apple Developer app), create a personal Google Play Console account, install Xcode on her MacBook Air, line up 12 Android testers for the 14-day closed test.
-  - Two answers still needed: which country she enrols under (dual Filipino-American citizen, lives and works in the Philippines; advice given: use the country where she lives and can show matching ID, address, phone and card, and decide before paying), and whether `com.isaymotion.genogram` is fine as the permanent app ID.
-  - Then ours: Capacitor wrapper with files bundled, Face ID lock and native share sheet (Apple guideline 4.2), Android target API 36, privacy policy page on GitHub Pages (the in-app `#/privacy` text from 1.6.0 is the starting point), TestFlight, closed test, listings, review.
+- **Store publishing, where it stands (2026-11-13, second chat):** baseline re-run from a fresh clone, everything passes (1.7.0 `99b8438`, v43 `26bcc8a`, in step). No app change was made.
+  - Decided by her: accounts enrolled under the **Philippines**; app ID **`com.isaymotion.genogram`** on both stores (permanent).
+  - Still not done by her: trying the app on her iPhone and iPad (especially “Move people” by finger) and reviewing the Tagalog. Ask again at the start of the next chat and fix what she finds before wrapping. If the Tagalog is still unreviewed at submission, say so to her and offer to ship English-first or keep the draft label.
+  - Step 1, given to her and waiting: (a) Apple Developer Program as an individual through the Apple Developer app on her iPhone (same Apple Account she will keep, two-factor on, legal name exactly as on her ID, Philippine address/phone/card; 99 USD a year in local currency; the store shows her legal name as seller); (b) Google Play Console personal account (25 USD once, identity check); (c) install Xcode on the MacBook Air (large download); (d) collect the Gmail addresses of 15 to 20 Android users (12 must stay opted in for 14 days in a row before Google allows the public release, so extra people are the safety margin).
+  - Checked 2026-11-13: Google Play needs target API 36 (Android 16) for new apps; the 12-tester / 14-day closed test still applies to new personal accounts.
+  - Step 2, ours, next: Capacitor wrapper with files bundled (keep it out of `main`'s published files, e.g. its own branch or repo, decide at the start), Face ID lock and native share sheet (Apple guideline 4.2), Android target API 36, privacy policy page on GitHub Pages (start from the in-app `#/privacy` text from 1.6.0), app icon and screenshots. Then: TestFlight, Android closed test (14 days), listings, review.
 - Ideas not built: sexual orientation marks, moving people up or down (only sideways works), in-laws beyond a sibling's partner, Tagalog on the chart itself, Tagalog search, linking this app from the other apps' menus.
 
 ## 8. Pitfalls learned
@@ -109,6 +111,8 @@ Both repos must be attached with push access (`add_repo`, access push).
 - Marks on a couple's line: the house is drawn last (`onTop`) so it covers the lines under it; on the short line over the top the house and slash sit closer together (`tight`).
 - PsychInterview side of a release: apply it as a script on a fresh `origin/main` right before pushing (the other chat pushes often), then run BOTH test sets before pushing: ours and `bash tools/tests/run_all.sh <app>` from PsychInterview's `dev-tools` branch. If a shared change makes one of their expectations outdated (1.7.0 did: `t_geno.js`), fix that line on their `dev-tools` with a comment.
 - GitHub Pages for `genogram` may need switching on by her: Settings > Pages > Deploy from a branch > main, / (root). She has not yet confirmed trying the app on a real iPhone.
+
+- 2026-11-13: `sync_engine.py --check` said DIFFERENT on a clean baseline because it compared the `dev-tools` branch's own older engine copy. Fixed: it now reads `js/genogram-engine.js` from the folder you run it in, so run it from the main checkout.
 
 ## 9. Files to re-attach
 None. Everything needed is in the two repos and this branch.
