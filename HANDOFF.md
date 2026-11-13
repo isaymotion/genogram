@@ -1,10 +1,10 @@
-# Genogram: handoff (updated 2026-11-13, after 1.7.0)
+# Genogram: handoff (updated 2026-11-13, after 1.7.0; next is store publishing)
 
 ## 1. Project and audience
 - Standalone family genogram maker for psychiatry residents and nurses. Owner: Ma. Isabella P. Navarro, MD (GitHub `isaymotion`). She does not code: explain plainly, short replies (she is often on her phone).
 - Repo `isaymotion/genogram` (public). `main` is the live site (GitHub Pages, https://isaymotion.github.io/genogram/). `dev-tools` holds this file and the test tools; it is never published.
 - Sister app: PsychInterview, repo `isaymotion/case-psychinterview` (one big `index.html`, plus `slides.js`, `pdf.js`). It carries the same genogram drawing code.
-- Live now: **Genogram 1.7.0** (main `99b8438`). PsychInterview's genogram code matches it (synced in its **v42**, main `1c3783b`). The PsychInterview chat publishes in between (it made v39 and v41), so always take the next number after whatever is live.
+- Live now: **Genogram 1.7.0** (main `99b8438`). PsychInterview is at **v43** (main `26bcc8a`, released by the PsychInterview chat); its genogram code is in step with 1.7.0 (synced in v42). The PsychInterview chat publishes in between, so always take the next number after whatever is live.
 
 ## 2. Fixed rules
 - **Parallel development (her standing instruction):** every genogram change goes to BOTH apps in the same release. Edit the shared block only in `genogram/js/genogram-engine.js`, never in PsychInterview.
@@ -64,7 +64,11 @@ node $T/regress.js /tmp/old-engine.js js/genogram-engine.js   # IDENTICAL x3 (ag
 python3 tools/sync_engine.py ../case-psychinterview --check   # "In step"
 python3 <isaymotion-app-design skill>/scripts/check_design.py .   # PASS
 python3 <skill>/scripts/check_sw.py ../case-psychinterview        # PASS
+node $T/regress_random.js /tmp/old-engine.js js/genogram-engine.js   # different: 0 of 300
+# PsychInterview's own tests (its dev-tools branch): every 'errors' line must be []
+cd ../case-psychinterview && git fetch origin dev-tools && git worktree add ../psych-dt origin/dev-tools && bash ../psych-dt/tools/tests/run_all.sh "$PWD"
 ```
+Release helpers are in `tools/release/` on this branch (`tl_add.py` for Tagalog and version bumps, `psych_apply.py` for the PsychInterview side); read its `README.md`.
 PowerPoint check (only when drawing changes): `node $T/make_stress_chart.js` (or `node $T/make_couple_chart.js 0..3` for the couple lines), then `python3 -I $T/t_pptx.py ../case-psychinterview`, convert `$GENO_QA/pp/case.pptx` with `soffice --headless --convert-to pdf`, render the genogram page with `pdftoppm` and look at it.
 Both repos must be attached with push access (`add_repo`, access push).
 
@@ -84,12 +88,11 @@ Both repos must be attached with push access (`add_repo`, access push).
 | Store publishing | NEXT, once she has done her two steps above (see below) |
 
 ## 7. Next steps
-- **She will say which new genogram features come next.** Ask; do not guess. Next Genogram version: 1.8.0. PsychInterview: current `CACHE` + 1.
-- GenoPro's next page is "Emotional Relationships in Genograms"; she may send it next. Those belong in `FAM_LINKS` / `genoLinkPrims`, not in the couple list.
-- **Store publishing is next.** On 2026-11-13 she said: after these improvements, publish. Her two own steps first: try the app on her iPhone and iPad, review the Tagalog. Where publishing stopped:
+- If she asks for another genogram feature first: next Genogram version 1.8.0; PsychInterview: current `CACHE` + 1.
+- **Store publishing is next.** On 2026-11-13 she said: after these improvements, publish. Start the new chat by asking for the two answers below and how her two own steps went (trying the app on her iPhone and iPad, especially “Move people” by finger; reviewing the Tagalog). Fix whatever she found before wrapping the app. Where publishing stopped:
   - She has no Apple or Google developer account yet. Her steps: enroll in the Apple Developer Program as an individual (Apple Developer app), create a personal Google Play Console account, install Xcode on her MacBook Air, line up 12 Android testers for the 14-day closed test.
   - Two answers still needed: which country she enrols under (dual Filipino-American citizen, lives and works in the Philippines; advice given: use the country where she lives and can show matching ID, address, phone and card, and decide before paying), and whether `com.isaymotion.genogram` is fine as the permanent app ID.
-  - Then ours: Capacitor wrapper with files bundled, Face ID lock and native share sheet (Apple guideline 4.2), Android target API 36, privacy policy page on GitHub Pages, TestFlight, closed test, listings, review.
+  - Then ours: Capacitor wrapper with files bundled, Face ID lock and native share sheet (Apple guideline 4.2), Android target API 36, privacy policy page on GitHub Pages (the in-app `#/privacy` text from 1.6.0 is the starting point), TestFlight, closed test, listings, review.
 - Ideas not built: sexual orientation marks, moving people up or down (only sideways works), in-laws beyond a sibling's partner, Tagalog on the chart itself, Tagalog search, linking this app from the other apps' menus.
 
 ## 8. Pitfalls learned
