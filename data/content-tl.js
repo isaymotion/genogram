@@ -461,5 +461,9 @@ window.CONTENT_TL = {
   "Same-sex couples": "Magkaparehang magkapareho ang kasarian",
   "Add the partner as Husband, Wife or Partner as usual. For “Partner” and “Former partner”, choose the sex in their card. The couple’s line and their children are drawn the same way.": "Idagdag ang kapareha bilang Asawa (lalaki), Asawa (babae) o Kapareha gaya ng dati. Para sa “Kapareha” at “Dating kapareha”, piliin ang kasarian sa kanilang card. Pareho ang pagguhit ng linya ng magkapareha at ng kanilang mga anak.",
   "Others in the household, and pets": "Iba pang kasama sa bahay, at mga alagang hayop",
-  "“Other relative”, “Household member (not related)” and “Pet” are drawn in a row of their own under the family. They are not joined to anyone unless you add a relationship line in step 2, for example Caregiver of or Close.": "Ang “Ibang kamag-anak”, “Kasama sa bahay (hindi kamag-anak)” at “Alagang hayop” ay iginuguhit sa sariling hanay sa ilalim ng pamilya. Hindi sila nakadugtong kaninuman maliban kung magdagdag ka ng linya ng ugnayan sa hakbang 2, halimbawa Tagapag-alaga ni o Malapit."
+  "“Other relative”, “Household member (not related)” and “Pet” are drawn in a row of their own under the family. They are not joined to anyone unless you add a relationship line in step 2, for example Caregiver of or Close.": "Ang “Ibang kamag-anak”, “Kasama sa bahay (hindi kamag-anak)” at “Alagang hayop” ay iginuguhit sa sariling hanay sa ilalim ng pamilya. Hindi sila nakadugtong kaninuman maliban kung magdagdag ka ng linya ng ugnayan sa hakbang 2, halimbawa Tagapag-alaga ni o Malapit.",
+  /* 1.8.0: store (phone) version */
+  "Unlock with Face ID or fingerprint": "Buksan gamit ang Face ID o fingerprint",
+  "Unlock the app": "Buksan ang app",
+  "On this phone you can also unlock with Face ID or fingerprint.": "Sa teleponong ito, puwede ring buksan gamit ang Face ID o fingerprint."
 };

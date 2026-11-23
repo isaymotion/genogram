@@ -4,6 +4,14 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.8.0',
+    date: '2026-11-23',
+    title: "Ready for the App Store and Google Play",
+    items: [
+      { type: 'update', text: "Groundwork for the phone version in the App Store and Google Play: there, saving a picture, PDF, file or backup opens the phone's share sheet, and the passcode lock can also open with Face ID or fingerprint. Nothing changes on this website." }
+    ]
+  },
+  {
     version: '1.7.0',
     date: '2026-11-13',
     title: "Move people by hand, gender identity, pets and others in the household",

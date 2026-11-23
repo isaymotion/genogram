@@ -513,7 +513,8 @@
   function lockCard() {
     var note = '<p class="hint">' + esc(tx('The lock keeps the app closed to someone who picks up this phone or computer. It does not encrypt what is saved, and a forgotten passcode cannot be recovered: export a backup first.')) + '</p>';
     if (!lockOK) return '<p>' + esc(tx('The passcode lock needs a newer browser and a secure (https) page.')) + '</p>';
-    if (LOCK) return '<p><strong>' + esc(tx('Passcode lock is on.')) + '</strong> ' + esc(tx('The app asks for the passcode when it opens, and after two minutes in the background.')) + '</p>' +
+    var bioNote = window.GenoNative && window.GenoNative.bio ? ' ' + esc(tx('On this phone you can also unlock with Face ID or fingerprint.')) : '';
+    if (LOCK) return '<p><strong>' + esc(tx('Passcode lock is on.')) + '</strong> ' + esc(tx('The app asks for the passcode when it opens, and after two minutes in the background.')) + bioNote + '</p>' +
       '<div class="flds">' + field(tx('Current passcode'), '<input type="password" id="lk-cur" inputmode="numeric" autocomplete="off" maxlength="12">', 'w2') + '</div>' +
       '<p class="lockcard__acts"><button type="button" class="btn" data-lock="now">' + esc(tx('Lock now')) + '</button><button type="button" class="btn" data-lock="off">' + esc(tx('Turn off the lock')) + '</button></p><p class="status" id="lk-status" role="status" aria-live="polite"></p>' + note;
     return '<p><strong>' + esc(tx('Passcode lock is off.')) + '</strong> ' + esc(tx('Choose 4 to 12 digits.')) + '</p>' +
@@ -527,18 +528,22 @@
     var el = document.createElement('div'); el.id = 'lockscreen'; el.className = 'lockscreen'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'lock-h');
     el.innerHTML = '<form class="lockscreen__box" autocomplete="off"><img src="icons/icon-192.png" alt="" width="64" height="64"><h1 id="lock-h">' + esc(txf('{app} is locked', { app: APP_NAME })) + '</h1>' +
       '<label class="fld"><span>' + esc(tx('Passcode')) + '</span><input type="password" id="lock-in" inputmode="numeric" autocomplete="off" maxlength="12"></label>' +
-      '<button type="submit" class="btn btn--solid">' + esc(tx('Unlock')) + '</button><p class="status" id="lock-status" role="status" aria-live="polite"></p>' +
+      '<button type="submit" class="btn btn--solid">' + esc(tx('Unlock')) + '</button>' + (window.GenoNative && window.GenoNative.bio ? ' <button type="button" class="btn" id="lock-bio">' + esc(tx('Unlock with Face ID or fingerprint')) + '</button>' : '') + '<p class="status" id="lock-status" role="status" aria-live="polite"></p>' +
       '<details class="lockscreen__forgot"><summary>' + esc(tx('Forgot the passcode?')) + '</summary><p>' + esc(tx('The passcode cannot be recovered. You can erase the genograms saved in this app on this device and start again. If you exported a backup, you can import it afterwards.')) + '</p>' +
       '<button type="button" class="btn" id="lock-erase">' + esc(tx('Erase the genograms and remove the lock')) + '</button></details></form>';
     document.body.appendChild(el);
-    var input = el.querySelector('#lock-in'), status = el.querySelector('#lock-status');
-    setTimeout(function () { input.focus(); }, 30);
+    var input = el.querySelector('#lock-in'), status = el.querySelector('#lock-status'), bio = el.querySelector('#lock-bio');
+    var unlocked = function () { lockFails = 0; el.remove(); document.documentElement.classList.remove('locked'); route({ keepScroll: true }); };
+    if (bio) {   // store (phone) version only: the phone's own Face ID, Touch ID or fingerprint check
+      var askBio = function () { window.GenoNative.bioCheck(tx('Unlock the app')).then(function (ok) { if (ok) unlocked(); }, function () {}); };
+      bio.addEventListener('click', askBio); setTimeout(askBio, 300);
+    } else setTimeout(function () { input.focus(); }, 30);
     el.querySelector('form').addEventListener('submit', function (e) {
       e.preventDefault();
       var wait = Math.ceil((lockUntil - Date.now()) / 1000);
       if (wait > 0) { status.textContent = txf('Too many tries. Wait {n} seconds.', { n: wait }); return; }
       lockCheck(input.value).then(function (ok) {
-        if (ok) { lockFails = 0; el.remove(); document.documentElement.classList.remove('locked'); route({ keepScroll: true }); return; }
+        if (ok) { unlocked(); return; }
         lockFails++; input.value = ''; input.focus();
         if (lockFails >= 5) { lockUntil = Date.now() + 30000; lockFails = 0; status.textContent = txf('Too many tries. Wait {n} seconds.', { n: 30 }); } else status.textContent = tx('That passcode is not right.');
       }, function () { status.textContent = tx('The passcode could not be checked on this browser.'); });
@@ -1107,6 +1112,8 @@
   }
   function deliver(bytes, name, type, done) {
     var file = null; try { file = new File([bytes], name, { type: type }); } catch (e) {}
+    // Store (phone) version: the native share sheet saves to Files or sends the file on. window.GenoNative exists only there.
+    if (window.GenoNative) { window.GenoNative.save(bytes, name, type).then(function () { say(done); }, function () { say(tx('Not saved.')); }); return; }
     var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     if (standalone && file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).then(function () { say(done); }, function () { say(tx('Not saved.')); }); return; }
     var url = URL.createObjectURL(new Blob([bytes], { type: type })), a = document.createElement('a');
@@ -1501,6 +1508,10 @@
     var payload = { app: BK_APP, format: 1, exported: now.toISOString(), attribution: ATTRIBUTION, summary: bkSummary(data), data: data };
     var name = BK_APP + '-backup-' + now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) + '.json';
     var json = JSON.stringify(payload, null, 1);
+    if (window.GenoNative) {   // store (phone) version: native share sheet
+      window.GenoNative.save(json, name, 'application/json').then(function () { bkStatus(t('backup.shared')); bkPaint(); }, function () { bkStatus(t('backup.exportCancelled')); });
+      return;
+    }
     var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     var file = null;
     try { file = new File([json], name, { type: 'application/json' }); } catch (e) {}
@@ -1594,7 +1605,7 @@
   route();
 
   /* ===== Service worker (https or localhost only) ===== */
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !window.Capacitor) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 })();
