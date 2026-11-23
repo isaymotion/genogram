@@ -657,7 +657,7 @@
     if (n < 3) return '';
     var day = 86400000, last = Date.parse(store.get('lastBackup', '') || '') || 0, snooze = Date.parse(store.get('bkSnooze', '') || '') || 0, now = Date.now();
     if (now - last < 30 * day || now - snooze < 14 * day) return '';
-    return '<div class="callout nudge" id="bk-nudge"><p class="callout__title">' + esc(tx('Save a backup file')) + '</p><p>' + esc(txf('Your {n} genograms are saved only on this device. A backup file keeps them safe if the phone is lost or the browser data is cleared.', { n: n })) + '</p>' +
+    return '<div class="callout nudge" id="bk-nudge"><p class="callout__title">' + esc(tx('Save a backup file')) + '</p><p>' + esc(txf(window.Capacitor ? 'Your {n} genograms are saved only on this device. A backup file keeps them safe if the phone is lost or the app is deleted.' : 'Your {n} genograms are saved only on this device. A backup file keeps them safe if the phone is lost or the browser data is cleared.', { n: n })) + '</p>' +
       '<p class="nudge__acts"><button type="button" class="btn btn--solid" data-act="bk-now">' + esc(tx('Save a backup now')) + '</button> <button type="button" class="link-btn" data-act="bk-later">' + esc(tx('Remind me later')) + '</button></p></div>';
   }
   /* Made-up families that show what the app can draw. Every name and detail is invented. sampleChart(n): n = 0 (Reyes) to 4 */
@@ -1365,10 +1365,20 @@
     ['Removing your data', 'Delete a genogram from the home screen, or clear this site’s data in the browser settings to remove everything. Because nothing is kept anywhere else, deleted genograms cannot be recovered without a backup file.'],
     ['Questions', 'Write to isaymotion@gmail.com.']
   ];
+  /* The App Store / Google Play version (window.Capacitor) keeps data in the app, not in a browser */
+  var PRIVACY_APP = [
+    ['Nothing leaves this device', 'Genogram has no account, no server and no tracking. It does not collect, send or share any information, and it works without the internet.'],
+    ['Where your genograms are kept', 'Everything you type is saved in the app’s own storage on this phone or tablet. Nobody else, including the maker of the app, can see it.'],
+    ['Files you choose to save', 'A picture, a PDF, a shared genogram file or a backup file is made on this device and goes only where you send it. These files are not encrypted: treat them like any other patient document.'],
+    ['Protecting the people on the chart', 'Use initials or an alias, or turn on “Initials only”. Follow your hospital’s rules on patient information. The optional passcode keeps the app closed on a shared device; it does not encrypt what is saved.'],
+    ['Face ID and fingerprint', 'If the passcode lock is on, the app can open with Face ID, Touch ID or your fingerprint. Your phone does this check itself: the app never sees or keeps any face or fingerprint data.'],
+    ['Removing your data', 'Delete a genogram from the home screen, or delete the app to remove everything. Because nothing is kept anywhere else, deleted genograms cannot be recovered without a backup file.'],
+    ['Questions', 'Write to isaymotion@gmail.com.']
+  ];
   TITLES.privacy = 'Privacy';
   VIEWS.privacy = function () {
     return '<div class="wrap page"><header class="page__head"><h1>' + esc(tx('Privacy')) + '</h1><p>' + esc(tx('In short: your genograms stay on your device.')) + '</p></header>' +
-      PRIVACY.map(function (g) { return '<div class="row row--static"><span><h3>' + esc(tx(g[0])) + '</h3><p>' + esc(tx(g[1])) + '</p></span><span></span></div>'; }).join('') + '</div>';
+      (window.Capacitor ? PRIVACY_APP : PRIVACY).map(function (g) { return '<div class="row row--static"><span><h3>' + esc(tx(g[0])) + '</h3><p>' + esc(tx(g[1])) + '</p></span><span></span></div>'; }).join('') + '</div>';
   };
   TITLES.guide = 'How to use';
   VIEWS.guide = function () {
@@ -1573,6 +1583,8 @@
   /* ===== Language switching: static markup (data-i18n / data-i18n-attr in index.html), then re-render ===== */
   function applyStatic() {
     document.documentElement.setAttribute('lang', lang);
+    var bt = window.Capacitor && document.querySelector('[data-i18n="backup.text"]');   // phone app: no browser
+    if (bt) bt.setAttribute('data-i18n', 'backup.textApp');
     var els = document.querySelectorAll('[data-i18n]'), i, v;
     for (i = 0; i < els.length; i++) { v = t(els[i].getAttribute('data-i18n')); if (v !== els[i].getAttribute('data-i18n')) els[i].textContent = v; }
     els = document.querySelectorAll('[data-i18n-attr]');

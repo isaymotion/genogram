@@ -11,6 +11,7 @@ Draw a clear family genogram in minutes: add the family, mark how people relate,
 - **Step 2, Relationships:** lines between any two people: close, very close / enmeshed, distant, conflictual, close but conflictual, cut off / estranged, abusive toward.
 - **Step 3, Genogram:** drawn automatically with standard symbols, siblings and children oldest to youngest, and a key that lists only what the chart uses. Save as a picture (PNG) or a one-page A4 PDF; both are made on the device.
 - **Six generations and four partners:** great-grandparents above the grandparent chosen as their child; a third and fourth partner joined by a line over the top.
+- **1.8.1:** the phone version (`window.Capacitor`) shows its own privacy wording (`PRIVACY_APP` in `js/app.js`, `backup.textApp` in `data/strings.js`, app variant of the backup reminder). `privacy.html` is the public privacy policy for the store listings (https://isaymotion.github.io/genogram/privacy.html); it is a separate page, not part of the app.
 - **1.8.0:** hooks for the store (phone) version, which lives on the `store` branch: `deliver()` and `bkExport()` use `window.GenoNative.save()` when it exists, the lock screen offers `GenoNative.bioCheck()`, and no service worker is registered inside the phone app. On the website nothing changes.
 - **1.7.0:** chart `pos` (`{id: sideways shift}`, `genoPos` for the engine; “Move people” drag in `pz*` functions of `js/app.js`); member `gid` / chart `ptGid` (`FAM_GID`); `Pet` relationship; `other`-role people are drawn in a last row instead of being left out.
 - **1.6.0:** member `born`, `died`, `med` (chart `ptBorn`, `ptDied`, `ptMed`) and chart `notes`; first-visit welcome card (`welcomeCard`, key `introSeen`), backup reminder (`backupNudge`, keys `lastBackup`, `bkSnooze`), `#/privacy` page (`PRIVACY` list).
@@ -33,6 +34,7 @@ Upload everything in this folder to the root of the repository, keeping the fold
 ```
 .nojekyll               (empty file; tells GitHub Pages not to run Jekyll)
 README.md
+privacy.html            Privacy policy page (store listings link here; not cached by the app)
 index.html              App shell (top bar, sidebar menu, footer, bottom tabs)
 css/app.css             Styles (light and dark themes)
 js/app.js               Router, menu, views (VIEWS), navigation (NAV), search, theme, backup
