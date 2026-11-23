@@ -1,0 +1,20 @@
+{
+  "name": "genogram-native",
+  "version": "1.8.0",
+  "description": "App Store and Google Play version of Genogram (Capacitor wrapper). Not published on GitHub Pages.",
+  "scripts": {
+    "web": "node build-web.js",
+    "sync": "node build-web.js && npx cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@capgo/capacitor-native-biometric": "^8.9.3"
+  },
+  "private": true
+}

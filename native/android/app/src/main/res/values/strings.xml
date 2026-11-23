@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Genogram</string>
+    <string name="title_activity_main">Genogram</string>
+    <string name="package_name">com.isaymotion.genogram</string>
+    <string name="custom_url_scheme">com.isaymotion.genogram</string>
+</resources>

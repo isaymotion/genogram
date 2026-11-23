@@ -1,0 +1,13 @@
+{
+  "appId": "com.isaymotion.genogram",
+  "appName": "Genogram",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F4FAFB"
+  },
+  "android": {
+    "backgroundColor": "#F4FAFB"
+  },
+  "plugins": {}
+}
