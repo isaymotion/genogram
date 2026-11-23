@@ -4,6 +4,14 @@
    then bump APP_META.version, VERSION in sw.js, and "Latest version" in the footer / README. */
 window.APP_CHANGELOG = [
   {
+    version: '1.8.1',
+    date: '2026-11-23',
+    title: "Accurate privacy wording in the phone app",
+    items: [
+      { type: 'update', text: "In the App Store and Google Play version, the Privacy page, the backup reminder and the backup box now describe the app’s own storage and Face ID instead of a web browser. Nothing changes on the website." }
+    ]
+  },
+  {
     version: '1.8.0',
     date: '2026-11-23',
     title: "Ready for the App Store and Google Play",

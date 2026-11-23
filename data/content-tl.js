@@ -465,5 +465,12 @@ window.CONTENT_TL = {
   /* 1.8.0: store (phone) version */
   "Unlock with Face ID or fingerprint": "Buksan gamit ang Face ID o fingerprint",
   "Unlock the app": "Buksan ang app",
-  "On this phone you can also unlock with Face ID or fingerprint.": "Sa teleponong ito, puwede ring buksan gamit ang Face ID o fingerprint."
+  "On this phone you can also unlock with Face ID or fingerprint.": "Sa teleponong ito, puwede ring buksan gamit ang Face ID o fingerprint.",
+  /* 1.8.1: phone app wording (App Store / Google Play version) */
+  "Genogram has no account, no server and no tracking. It does not collect, send or share any information, and it works without the internet.": "Walang account, server o tracking ang Genogram. Hindi ito nangongolekta, nagpapadala o nagbabahagi ng anumang impormasyon, at gumagana ito kahit walang internet.",
+  "Everything you type is saved in the app’s own storage on this phone or tablet. Nobody else, including the maker of the app, can see it.": "Lahat ng tina-type mo ay naka-save sa sariling storage ng app sa teleponong ito o tablet. Walang ibang makakakita nito, kahit ang gumawa ng app.",
+  "Face ID and fingerprint": "Face ID at fingerprint",
+  "If the passcode lock is on, the app can open with Face ID, Touch ID or your fingerprint. Your phone does this check itself: the app never sees or keeps any face or fingerprint data.": "Kapag naka-on ang passcode lock, mabubuksan ang app gamit ang Face ID, Touch ID o ang iyong fingerprint. Ang telepono mismo ang nagsusuri nito: hindi kailanman nakikita o itinatago ng app ang anumang data ng mukha o fingerprint.",
+  "Delete a genogram from the home screen, or delete the app to remove everything. Because nothing is kept anywhere else, deleted genograms cannot be recovered without a backup file.": "Burahin ang isang genogram mula sa home screen, o burahin ang app para alisin ang lahat. Dahil walang nakatago sa ibang lugar, hindi na maibabalik ang nabura nang genogram kung walang backup file.",
+  "Your {n} genograms are saved only on this device. A backup file keeps them safe if the phone is lost or the app is deleted.": "Ang {n} mong genogram ay naka-save lamang sa device na ito. Pinananatili silang ligtas ng backup file kung mawala ang telepono o mabura ang app."
 };
