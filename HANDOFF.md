@@ -1,10 +1,10 @@
-# Genogram: handoff (updated 2026-11-13, store publishing started: waiting on her accounts)
+# Genogram: handoff (updated 2026-11-23: 1.8.0 live, phone wrapper on the `store` branch, waiting on her accounts)
 
 ## 1. Project and audience
 - Standalone family genogram maker for psychiatry residents and nurses. Owner: Ma. Isabella P. Navarro, MD (GitHub `isaymotion`). She does not code: explain plainly, short replies (she is often on her phone).
-- Repo `isaymotion/genogram` (public). `main` is the live site (GitHub Pages, https://isaymotion.github.io/genogram/). `dev-tools` holds this file and the test tools; it is never published.
+- Repo `isaymotion/genogram` (public). `main` is the live site (GitHub Pages, https://isaymotion.github.io/genogram/). `dev-tools` holds this file and the test tools; it is never published. `store` (from 2026-11-23) = `main` + `native/` (Capacitor wrapper) + `.github/workflows/android.yml`; also never published.
 - Sister app: PsychInterview, repo `isaymotion/case-psychinterview` (one big `index.html`, plus `slides.js`, `pdf.js`). It carries the same genogram drawing code.
-- Live now: **Genogram 1.7.0** (main `99b8438`). PsychInterview is at **v43** (main `26bcc8a`, released by the PsychInterview chat); its genogram code is in step with 1.7.0 (synced in v42). The PsychInterview chat publishes in between, so always take the next number after whatever is live.
+- Live now: **Genogram 1.8.0** (main `ed9784d`, 2026-11-23: hooks for the phone version only, no drawing change, PsychInterview untouched). PsychInterview is at **v43** (main `26bcc8a`, released by the PsychInterview chat); its genogram code is in step with 1.7.0 (synced in v42). The PsychInterview chat publishes in between, so always take the next number after whatever is live.
 
 ## 2. Fixed rules
 - **Parallel development (her standing instruction):** every genogram change goes to BOTH apps in the same release. Edit the shared block only in `genogram/js/genogram-engine.js`, never in PsychInterview.
@@ -33,6 +33,8 @@
 - Sample families (1.4.0, Genogram app only): `sampleChart(n)` and the `SAMPLES` list in `js/app.js`; the home screen's "Sample families" card has one row per family (`data-act="sample-n"`, `data-n`), with its one-line description written there inside `tx()`. The hero button still opens Reyes (`data-act="sample"`; several tests click it).
 - Share file: `{app:'genogram', kind:'chart', format:1, chart}` as `*.genogram.json`. Both apps open and save it.
 - Passcode lock: salted PBKDF2 hash under `g:v1:lock`, left out of backups. It is a screen lock, not encryption.
+- **1.8.0 / phone version (`store` branch, `native/`):** Capacitor 8.6, app ID `com.isaymotion.genogram`, name Genogram. `native/build-web.js` copies `index.html css js data fonts icons` into `native/www`, drops the manifest link and replaces the seven app `<script>` tags with `window.GENO_SCRIPTS` + `js/native.js`, which (1) mirrors every `g:v1:` localStorage write into Capacitor Preferences (patched `Storage.prototype.setItem/removeItem`) and restores them when the web view's storage is empty, (2) sets `window.GenoNative = {bio, save(data,name), bioCheck(reason)}` (Filesystem cache file + Share sheet; @capgo/capacitor-native-biometric), then (3) loads the app scripts in order. `js/app.js` on `main` uses `GenoNative` only when it exists: `deliver()`, `bkExport()`, the lock screen (Face ID button, asked automatically, passcode still works) and the `lockCard` note; no service worker when `window.Capacitor`. iOS `Info.plist` has `NSFaceIDUsageDescription`; Android manifest has `USE_BIOMETRIC`. Android targets API 36 (Capacitor 8 default). Plugins: share, filesystem, preferences, capgo native-biometric 8.9.
+- Data in the phone app is separate from the website's (different origin): moving genograms between them is by backup export / import.
 - Drawing pieces must stay within `line`, `poly`, `shape` (rect, ellipse, diamond) and `text`: PsychInterview's slide export understands only those.
 
 ## 4. Recipe for one release
@@ -85,11 +87,16 @@ Both repos must be attached with push access (`add_repo`, access push).
 | PowerPoint slide check of new symbols | done, all draw correctly |
 | Her review of the Tagalog draft (everything since 1.2.0) | not done |
 | Her test on a real iPhone and iPad (especially “Move people” by finger) | not done |
-| Store publishing | STARTED 2026-11-13: step 1 (her accounts) given to her; nothing built yet (see below) |
+| 1.8.0: hooks for the phone version | done, live |
+| Phone wrapper (`store` branch), Android build on GitHub | done; icons, privacy page, signing, screenshots still to do |
+| Store publishing | waiting on her step 1 (accounts, Xcode, testers): not started as of 2026-11-23 |
 
 ## 7. Next steps
 - If she asks for another genogram feature first: next Genogram version 1.8.0; PsychInterview: current `CACHE` + 1.
-- **Store publishing, where it stands (2026-11-13, second chat):** baseline re-run from a fresh clone, everything passes (1.7.0 `99b8438`, v43 `26bcc8a`, in step). No app change was made.
+- **2026-11-23 (third chat):** she had started none of her step 1 (no Apple or Google account, no Xcode, no testers, no iPhone/iPad test, no Tagalog review); step-by-step sign-up instructions given again. Built: 1.8.0 on `main` (all tests pass), the `store` branch wrapper, and the Android build on GitHub Actions (passes; it checks the app ID, target API 36 and the bundled files; artifact `genogram-android` = debug .apk + unsigned .aab). This workspace cannot reach dl.google.com or the artifact download host, so Android builds only run on GitHub. `tools/tests/t_native.py <native/www>`: 11 checks of the bridge with mocked plugins (run `node build-web.js` in `native/` first, `npm ci` there if `node_modules` is missing).
+  - Still to build (ours, can be done before her accounts exist): replace Capacitor's placeholder app icons and splash with the Genogram icon (iOS needs a 1024 px source; `icons/` has up to 512, so make a 1024 from the source art or redraw); a static `privacy.html` on `main` as the store privacy-policy URL (from the in-app `#/privacy` text); screenshots; listing text in English; Android upload-key signing (keystore as GitHub secrets, signed `bundleRelease`) once her Play account exists; version numbers (`versionCode`/`versionName` in `native/android/app/build.gradle`, Xcode marketing version 1.8.0).
+  - Hers, after accounts: open `native/ios/App/App.xcodeproj` in Xcode (after `npm ci && npm run sync` in `native/`), pick her team, run on her iPhone, Archive, upload to TestFlight. Walk her through each click.
+- **Store publishing, where it stood (2026-11-13, second chat):** baseline re-run from a fresh clone, everything passes (1.7.0 `99b8438`, v43 `26bcc8a`, in step). No app change was made.
   - Decided by her: accounts enrolled under the **Philippines**; app ID **`com.isaymotion.genogram`** on both stores (permanent).
   - Still not done by her: trying the app on her iPhone and iPad (especially “Move people” by finger) and reviewing the Tagalog. Ask again at the start of the next chat and fix what she finds before wrapping. If the Tagalog is still unreviewed at submission, say so to her and offer to ship English-first or keep the draft label.
   - Step 1, given to her and waiting: (a) Apple Developer Program as an individual through the Apple Developer app on her iPhone (same Apple Account she will keep, two-factor on, legal name exactly as on her ID, Philippine address/phone/card; 99 USD a year in local currency; the store shows her legal name as seller); (b) Google Play Console personal account (25 USD once, identity check); (c) install Xcode on the MacBook Air (large download); (d) collect the Gmail addresses of 15 to 20 Android users (12 must stay opted in for 14 days in a row before Google allows the public release, so extra people are the safety margin).
@@ -113,6 +120,9 @@ Both repos must be attached with push access (`add_repo`, access push).
 - GitHub Pages for `genogram` may need switching on by her: Settings > Pages > Deploy from a branch > main, / (root). She has not yet confirmed trying the app on a real iPhone.
 
 - 2026-11-13: `sync_engine.py --check` said DIFFERENT on a clean baseline because it compared the `dev-tools` branch's own older engine copy. Fixed: it now reads `js/genogram-engine.js` from the folder you run it in, so run it from the main checkout.
+
+- 2026-11-23: `rm -rf *` after `cd` is blocked by the session's safety check; use `mktemp -d`. GitHub Actions artifacts cannot be downloaded here (the proxy blocks the blob host): put checks inside the workflow and read them with `gh run view <id> --log`. Fetch this branch with `git fetch origin +dev-tools:refs/remotes/origin/dev-tools` (a shallow clone does not track it).
+- The `store` branch must be refreshed from `main` after every release: `git switch store && git merge main`, then `cd native && npm run sync`, and bump the Android `versionCode`.
 
 ## 9. Files to re-attach
 None. Everything needed is in the two repos and this branch.
