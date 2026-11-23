@@ -1,6 +1,6 @@
 {
   "name": "genogram-native",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "App Store and Google Play version of Genogram (Capacitor wrapper). Not published on GitHub Pages.",
   "scripts": {
     "web": "node build-web.js",
