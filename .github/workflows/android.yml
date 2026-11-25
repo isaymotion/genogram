@@ -1,5 +1,7 @@
 # Builds the Google Play version of Genogram on GitHub's servers (store branch only; the website is not affected).
-# Result: Actions tab > latest "Android build" run > Artifacts > genogram-android (a test .apk and an unsigned .aab).
+# Result: Actions tab > latest "Android build" run > Artifacts > genogram-android (a test .apk and the .aab).
+# When the upload-key secrets are set, the .aab is signed and sent to Google Play's closed testing track as a draft
+# (Play Console > Test and release > Closed testing). Version code = 11000 + run number, so every upload is newer.
 name: Android build
 on:
   push:
@@ -18,7 +20,17 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - run: npm ci
       - run: node build-web.js && npx cap sync android
-      - run: cd android && chmod +x gradlew && ./gradlew --no-daemon assembleDebug bundleRelease
+      - name: Prepare upload key
+        env: { KEYSTORE_B64: "${{ secrets.ANDROID_KEYSTORE_B64 }}" }
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> $GITHUB_ENV
+          fi
+      - run: |
+          export ANDROID_VERSION_CODE=$((11000 + GITHUB_RUN_NUMBER))
+          cd android && chmod +x gradlew && ./gradlew --no-daemon assembleDebug bundleRelease
+        env: { ANDROID_KEYSTORE_PASSWORD: "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" }
       - name: Check the app (bundled files, app ID, target API)
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
@@ -34,3 +46,12 @@ jobs:
           path: |
             native/android/app/build/outputs/apk/debug/*.apk
             native/android/app/build/outputs/bundle/release/*.aab
+      - name: Upload to Google Play (closed testing, draft)
+        if: env.ANDROID_KEYSTORE_FILE != '' && github.ref == 'refs/heads/store'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.isaymotion.genogram
+          releaseFiles: native/android/app/build/outputs/bundle/release/app-release.aab
+          track: alpha
+          status: draft
