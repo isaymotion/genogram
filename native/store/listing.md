@@ -8,7 +8,7 @@ Copy each block into the matching box. Character limits are in brackets; every b
 - **Support / website URL:** https://isaymotion.github.io/genogram/
 - **Contact email:** isaymotion@gmail.com
 - **Category:** Medical (Apple: secondary category Education)
-- **Price:** Free. No ads, no in-app purchases.
+- **Price:** USD 8.99, one-time (paid app). No ads, no in-app purchases.
 - **Data collected:** none (Apple "Data Not Collected"; Google Data safety "No data collected, no data shared").
 - **Copyright (Apple):** 2026 Ma. Isabella P. Navarro
 
