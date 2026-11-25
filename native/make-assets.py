@@ -11,21 +11,25 @@ from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, '..', 'icons', 'icon-source.png')
-BG = (3, 61, 76)          # the art's edge colour (#033D4C), used to pad and as background
-BG_HEX = '#033D4C'
+GLYPH = os.path.join(HERE, '..', 'icons', 'icon-glyph.png')   # the symbols alone, transparent (for padded icons and splash)
+BG = (22, 95, 102)        # mid-teal of the icon's gradient (#165F66), used to pad and as background
+BG_HEX = '#165F66'
 IOS = os.path.join(HERE, 'ios', 'App', 'App', 'Assets.xcassets')
 RES = os.path.join(HERE, 'android', 'app', 'src', 'main', 'res')
 STORE = os.path.join(HERE, 'store')
 
 art = Image.open(SRC).convert('RGB')
 assert art.size == (1024, 1024), art.size
+glyph = Image.open(GLYPH).convert('RGBA') if os.path.exists(GLYPH) else None
 
 
 def fit(size, frac):
     """Square canvas `size` px, BG colour, with the art scaled to `frac` of it, centred."""
     c = Image.new('RGB', (size, size), BG)
     n = max(1, round(size * frac))
-    c.paste(art.resize((n, n), Image.LANCZOS), ((size - n) // 2, (size - n) // 2))
+    src = glyph or art
+    im = src.resize((n, n), Image.LANCZOS)
+    c.paste(im, ((size - n) // 2, (size - n) // 2), im if glyph else None)
     return c
 
 
@@ -33,7 +37,9 @@ def canvas(w, h, frac):
     """w x h, BG colour, art scaled to `frac` of the shorter side, centred."""
     c = Image.new('RGB', (w, h), BG)
     n = round(min(w, h) * frac)
-    c.paste(art.resize((n, n), Image.LANCZOS), ((w - n) // 2, (h - n) // 2))
+    src = glyph or art
+    im = src.resize((n, n), Image.LANCZOS)
+    c.paste(im, ((w - n) // 2, (h - n) // 2), im if glyph else None)
     return c
 
 
@@ -80,7 +86,7 @@ for root, dirs, files in os.walk(RES):
 # ---- Store graphics ----
 os.makedirs(STORE, exist_ok=True)
 art.resize((512, 512), Image.LANCZOS).save(os.path.join(STORE, 'play-icon-512.png'))
-fg = Image.new('RGB', (1024, 500), BG)
-fg.paste(art.resize((500, 500), Image.LANCZOS), (262, 0))
+fg = canvas(1024, 500, 1.0) if glyph else Image.new('RGB', (1024, 500), BG)
+if not glyph: fg.paste(art.resize((500, 500), Image.LANCZOS), (262, 0))
 fg.save(os.path.join(STORE, 'play-feature-1024x500.png'))
 print('icons and splash written')
