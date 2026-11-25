@@ -1,0 +1,1 @@
+No sign-in is needed and the app makes no network requests. To see a full chart quickly, tap "Open a sample family" on the home screen (all sample families are invented). The optional passcode lock is under About; once a passcode is set, the app offers Face ID to unlock.

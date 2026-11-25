@@ -12,7 +12,7 @@ name: iOS build and upload
 on:
   push:
     branches: [store]
-    paths: ['native/**', 'js/**', 'css/**', 'data/**', 'index.html', '.github/workflows/ios.yml']
+    paths: ['native/**', '!native/store/**', 'js/**', 'css/**', 'data/**', 'index.html', '.github/workflows/ios.yml']
   workflow_dispatch:
     inputs:
       upload:
