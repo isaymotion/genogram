@@ -1,5 +1,6 @@
 # Builds the App Store version of Genogram on a Mac at GitHub and uploads it to App Store Connect (store branch only; the website is not affected).
-# Run it by hand: Actions tab > "iOS build and upload" > Run workflow. About 15 minutes later the build appears in TestFlight.
+# Runs on every push to store that changes the app (like the Android build), and can be re-run from the Actions tab
+# (open the latest "iOS build and upload" run > Re-run all jobs). About 15 minutes later the build appears in TestFlight.
 # Needs four repository secrets (Settings > Secrets and variables > Actions):
 #   ASC_KEY_ID       App Store Connect API key ID (Users and Access > Integrations > App Store Connect API; role: Admin)
 #   ASC_ISSUER_ID    Issuer ID shown above the key list on the same page
@@ -9,6 +10,9 @@
 # The build number is the run number, so every upload is accepted; the version (1.8.1) comes from Xcode's MARKETING_VERSION.
 name: iOS build and upload
 on:
+  push:
+    branches: [store]
+    paths: ['native/**', 'js/**', 'css/**', 'data/**', 'index.html', '.github/workflows/ios.yml']
   workflow_dispatch:
     inputs:
       upload:
@@ -56,7 +60,7 @@ jobs:
           echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $APP/Info.plist) build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' $APP/Info.plist)"
       - name: Export and upload to App Store Connect
         run: |
-          DEST=export; [ "${{ inputs.upload }}" = "true" ] && DEST=upload
+          DEST=export; [ "${{ inputs.upload }}" != "false" ] && DEST=upload
           cat > $RUNNER_TEMP/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
