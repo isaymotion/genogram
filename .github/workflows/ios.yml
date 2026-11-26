@@ -55,7 +55,8 @@ jobs:
       - name: Check the app (bundled files, app ID, version)
         run: |
           APP=$RUNNER_TEMP/Genogram.xcarchive/Products/Applications/App.app
-          ls $APP/public/index.html $APP/public/js/native.js $APP/public/js/app.js
+          ls $APP/public/index.html $APP/public/js/native.js $APP/public/js/capacitor.js $APP/public/js/app.js
+          grep -q "js/capacitor.js" $APP/public/index.html
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' $APP/Info.plist | grep -qx com.isaymotion.genogram
           echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $APP/Info.plist) build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' $APP/Info.plist)"
       - name: Export and upload to App Store Connect

@@ -36,6 +36,7 @@ jobs:
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           unzip -l $APK | grep -E "assets/public/(index.html|js/native.js|js/app.js)"
           unzip -l $APK | grep -q assets/public/js/native.js
+          unzip -l $APK | grep -q assets/public/js/capacitor.js
           AAPT=$(ls $ANDROID_HOME/build-tools/*/aapt2 | tail -1)
           $AAPT dump badging $APK | grep -E "^package:|targetSdkVersion|uses-permission"
           $AAPT dump badging $APK | grep -q "name='com.isaymotion.genogram'"
